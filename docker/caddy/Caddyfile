@@ -1,0 +1,46 @@
+{
+    email {$CADDY_ACME_EMAIL}
+}
+
+{$CADDY_PRIMARY_DOMAIN}, {$CADDY_API_DOMAIN} {
+    encode zstd gzip
+
+    # API routes - highest priority
+    @api_host expression {host} == "{$CADDY_API_DOMAIN}" && "{$CADDY_API_DOMAIN}" != "{$CADDY_PRIMARY_DOMAIN}"
+    @api_paths path /api* /docs* /openapi.json /redoc* /health
+
+    handle @api_host {
+        reverse_proxy backend:8000
+    }
+
+    handle @api_paths {
+        reverse_proxy backend:8000
+    }
+
+    # PWA routes - must come BEFORE frontend catch-all
+    handle /pwa* {
+        root * /srv/pwa
+        uri strip_prefix /pwa
+
+        # Set MIME types
+        @css path *.css
+        header @css Content-Type "text/css; charset=utf-8"
+
+        @js path *.js
+        header @js Content-Type "application/javascript; charset=utf-8"
+
+        @json path *.json
+        header @json Content-Type "application/json; charset=utf-8"
+
+        @html path *.html
+        header @html Content-Type "text/html; charset=utf-8"
+
+        try_files {path} /index.html
+        file_server
+    }
+
+    # Frontend - lowest priority, catches everything else
+    handle {
+        reverse_proxy frontend:3000
+    }
+}

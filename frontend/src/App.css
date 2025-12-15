@@ -1,0 +1,30 @@
+.App {
+  text-align: center;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background-color: #282c34;
+}
+
+.App-header {
+  color: white;
+}
+
+.App-header h1 {
+  font-size: 3rem;
+  margin-bottom: 2rem;
+}
+
+.health-status {
+  font-size: 1.2rem;
+  padding: 2rem;
+  background-color: #363a45;
+  border-radius: 8px;
+  margin-top: 2rem;
+}
+
+.health-status p {
+  margin: 0.5rem 0;
+}
