@@ -6,7 +6,11 @@ import sys
 from pathlib import Path
 
 # Add parent directory to path to import app modules
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+# migrations/env.py -> app/ -> backend/
+app_path = str(Path(__file__).resolve().parents[1])
+backend_path = str(Path(__file__).resolve().parents[2])
+sys.path.insert(0, app_path)
+sys.path.insert(0, backend_path)
 
 from app.config.database import Base
 from app.config.env import load_project_env
@@ -52,7 +56,7 @@ def run_migrations_offline() -> None:
 
 def run_migrations_online() -> None:
     """Run migrations in 'online' mode."""
-    configuration = config.get_section(config.config_ini_section)
+    configuration = config.get_section(config.config_ini_section) or {}
     configuration["sqlalchemy.url"] = database_url
 
     connectable = engine_from_config(

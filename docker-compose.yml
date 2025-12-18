@@ -21,7 +21,7 @@ services:
       retries: 5
       start_period: 20s
     volumes:
-      - mysql_data:/var/lib/mysql
+      - ./mysql-data:/var/lib/mysql
 
   backend:
     build:
@@ -68,7 +68,3 @@ services:
       - ./frontend:/frontend
       - /frontend/node_modules
     restart: unless-stopped
-
-volumes:
-  mysql_data:
-    name: app-mysql-data

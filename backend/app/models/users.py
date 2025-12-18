@@ -1,29 +1,41 @@
 """User model."""
 import uuid
-from sqlalchemy import Column, String, Boolean, DateTime, func
-from fastapi_users_db_sqlalchemy import GUID
+from sqlalchemy import Column, String, Boolean, DateTime, func, ForeignKey, Integer
+from sqlalchemy.orm import relationship
 from app.config.database import Base
 
 
 class User(Base):
-    """User model with authentication fields."""
+    """User model with company association and notification preferences."""
     __tablename__ = "users"
-    __table_args__ = {"extend_existing": True}
 
-    id = Column(GUID, primary_key=True, default=uuid.uuid4)
-    email = Column(String(255), unique=True, index=True, nullable=False)
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    company_id = Column(String(36), ForeignKey("companies.id", ondelete="CASCADE"), nullable=False)
+    firstname = Column(String(64), nullable=False)
+    lastname = Column(String(64), nullable=False)
+    position = Column(String(64), nullable=True, default=None)
+    email = Column(String(64), unique=True, index=True, nullable=False)
     hashed_password = Column(String(1024), nullable=False)
-    is_active = Column(Boolean, default=True, nullable=False)
-    is_superuser = Column(Boolean, default=False, nullable=False)
-    is_verified = Column(Boolean, default=False, nullable=False)
 
-    # Optional profile fields
-    first_name = Column(String(64), nullable=True)
-    last_name = Column(String(64), nullable=True)
+    # Status fields
+    verified = Column(Integer, default=0, nullable=False)  # tinyint(1): 0=False, 1=True
+    is_superuser = Column(Integer, default=0, nullable=False)  # tinyint(1): 0=False, 1=True
+
+    # Notification channel status
+    # Values: 'disabled', 'enabled', 'verifying', 'verified'
+    notifications = Column(String(20), default='disabled', nullable=False)
+    slack = Column(String(20), default='disabled', nullable=False)
+    teams = Column(String(20), default='disabled', nullable=False)
+    discord = Column(String(20), default='disabled', nullable=False)
+    telegram = Column(String(20), default='disabled', nullable=False)
 
     # Timestamps
     created_at = Column(DateTime, default=func.now(), nullable=False)
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now(), nullable=False)
+    deleted_at = Column(DateTime, nullable=True, default=None)
+
+    # Relationships
+    company = relationship("Company", back_populates="users")
 
     def __repr__(self):
-        return f"<User(email={self.email})>"
+        return f"<User(email={self.email}, name={self.firstname} {self.lastname})>"

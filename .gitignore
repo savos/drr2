@@ -54,6 +54,7 @@ logs/
 *.db
 *.sqlite
 *.sqlite3
+mysql-data/
 
 # Docker
 docker-compose.override.yml
@@ -76,3 +77,6 @@ AUTOMATIC-MIGRATIONS-SETUP.md
 README.md
 GETTING-STARTED.md
 PROJECT-OVERVIEW.md
+DATABASE-PERSISTENCE.md
+.github/DEPLOYMENT-SETUP.md
+

@@ -1,0 +1,90 @@
+.dashboard-header {
+  background: white;
+  border-bottom: 1px solid #e2e8f0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+}
+
+.dashboard-header-content {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 70px;
+}
+
+/* Left: Logo */
+.dashboard-header-left {
+  flex: 0 0 auto;
+}
+
+.dashboard-logo-link {
+  text-decoration: none;
+}
+
+.dashboard-logo {
+  width: 120px;
+  height: 45px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: 700;
+  font-size: 24px;
+  letter-spacing: 2px;
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+
+.dashboard-logo:hover {
+  transform: translateY(-2px);
+}
+
+/* Right: Sign Out Button */
+.dashboard-header-right {
+  flex: 0 0 auto;
+}
+
+.dashboard-logout-button {
+  padding: 10px 24px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: none;
+  outline: none;
+  white-space: nowrap;
+  background-color: #f56565;
+  color: white;
+}
+
+.dashboard-logout-button:hover {
+  background-color: #e53e3e;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(245, 101, 101, 0.3);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .dashboard-header-content {
+    height: 60px;
+  }
+
+  .dashboard-logo {
+    width: 80px;
+    height: 35px;
+    font-size: 18px;
+  }
+
+  .dashboard-logout-button {
+    padding: 8px 16px;
+    font-size: 13px;
+  }
+}

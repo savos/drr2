@@ -12,7 +12,7 @@ from app.database.database import (
     ensure_database_exists,
     run_migrations,
 )
-from app.routers import health
+from app.routers import health, auth, users
 
 # Load environment variables
 ENV_FILE = load_project_env()
@@ -87,6 +87,8 @@ app.add_middleware(
 
 # Include routers
 app.include_router(health.router, prefix="/api")
+app.include_router(auth.router, prefix="/api")
+app.include_router(users.router, prefix="/api")
 
 
 if __name__ == "__main__":

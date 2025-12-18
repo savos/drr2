@@ -1,6 +1,7 @@
 """Database connection and session management."""
 import os
 import logging
+import time
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy import text, inspect
 import pymysql
@@ -43,29 +44,46 @@ async def get_db():
 
 async def ensure_database_exists():
     """Ensure the database exists, create it if it doesn't."""
-    try:
-        # Connect without database name using pymysql (sync)
-        connection = pymysql.connect(
-            host=DB_HOST,
-            port=int(DB_PORT),
-            user="root",
-            password=DB_ROOT_PASSWORD,
-        )
-        cursor = connection.cursor()
+    max_retries = 30
+    retry_delay = 1  # Start with 1 second
 
-        # Create database if it doesn't exist
-        cursor.execute(
-            f"CREATE DATABASE IF NOT EXISTS `{DB_NAME}` "
-            f"CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"
-        )
-        connection.commit()
-        cursor.close()
-        connection.close()
+    for attempt in range(max_retries):
+        try:
+            # Connect without database name using pymysql (sync)
+            connection = pymysql.connect(
+                host=DB_HOST,
+                port=int(DB_PORT),
+                user="root",
+                password=DB_ROOT_PASSWORD,
+                connect_timeout=5,
+            )
+            cursor = connection.cursor()
 
-        logger.info(f"Database '{DB_NAME}' is ready")
-    except Exception as e:
-        logger.error(f"Error ensuring database exists: {e}")
-        raise
+            # Create database if it doesn't exist
+            cursor.execute(
+                f"CREATE DATABASE IF NOT EXISTS `{DB_NAME}` "
+                f"CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"
+            )
+            connection.commit()
+            cursor.close()
+            connection.close()
+
+            logger.info(f"Database '{DB_NAME}' is ready")
+            return
+        except pymysql.err.OperationalError as e:
+            if attempt < max_retries - 1:
+                logger.warning(
+                    f"Database connection attempt {attempt + 1}/{max_retries} failed: {e}. "
+                    f"Retrying in {retry_delay} seconds..."
+                )
+                time.sleep(retry_delay)
+                retry_delay = min(retry_delay * 1.5, 10)  # Exponential backoff, max 10s
+            else:
+                logger.error(f"Failed to connect to database after {max_retries} attempts")
+                raise
+        except Exception as e:
+            logger.error(f"Error ensuring database exists: {e}")
+            raise
 
 
 async def database_has_tables() -> bool:
