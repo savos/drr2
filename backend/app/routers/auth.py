@@ -20,6 +20,7 @@ from app.utils.security import (
     create_access_token,
     validate_password_strength,
     ACCESS_TOKEN_EXPIRE_MINUTES,
+    get_current_user,
 )
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -214,3 +215,20 @@ async def validate_password(request: PasswordStrengthRequest):
         message=message,
         strength=strength
     )
+
+
+@router.get("/me")
+async def get_me(current_user: User = Depends(get_current_user)):
+    """
+    Get current authenticated user information.
+
+    This is a debug endpoint to test authentication.
+    """
+    return {
+        "id": current_user.id,
+        "email": current_user.email,
+        "firstname": current_user.firstname,
+        "lastname": current_user.lastname,
+        "verified": bool(current_user.verified),
+        "is_superuser": bool(current_user.is_superuser),
+    }

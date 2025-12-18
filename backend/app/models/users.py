@@ -36,6 +36,10 @@ class User(Base):
 
     # Relationships
     company = relationship("Company", back_populates="users")
+    slack_integrations = relationship("Slack", back_populates="user", cascade="all, delete-orphan")
+    telegram_connections = relationship("TelegramDMConnection", back_populates="user", cascade="all, delete-orphan")
+    discord_connections = relationship("Discord", back_populates="user", cascade="all, delete-orphan")
+    teams_connections = relationship("TeamsDMConnection", back_populates="user", cascade="all, delete-orphan")
 
     def __repr__(self):
         return f"<User(email={self.email}, name={self.firstname} {self.lastname})>"

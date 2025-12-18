@@ -1,4 +1,5 @@
 import StubPage from './StubPage';
+import Slack from './Slack';
 
 // Account Pages
 export function PlanPage() {
@@ -44,7 +45,7 @@ export function PushNotificationsPage() {
 }
 
 export function SlackChannelPage() {
-  return <StubPage title="Slack Integration" description="Connect your Slack workspace to receive domain reminders." />;
+  return <Slack />;
 }
 
 export function TeamsChannelPage() {

@@ -130,14 +130,20 @@ def validate_password_strength(password: str) -> tuple[bool, str]:
 security = HTTPBearer()
 
 
+from sqlalchemy.ext.asyncio import AsyncSession
+from app.database.database import get_db
+
+
 async def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(security)
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Get the current user from JWT token.
 
     Args:
         credentials: HTTP Authorization credentials with Bearer token
+        db: Database session (injected by FastAPI)
 
     Returns:
         Current user object
@@ -145,28 +151,37 @@ async def get_current_user(
     Raises:
         HTTPException: If token is invalid or user not found
     """
-    from app.database.database import get_db
     from app.models.users import User
+    import logging
+
+    logger = logging.getLogger(__name__)
 
     token = credentials.credentials
     payload = decode_access_token(token)
 
     user_id: str = payload.get("user_id")
+    logger.info(f"Decoded token, user_id: {user_id}")
+
     if user_id is None:
+        logger.warning("No user_id in token payload")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Could not validate credentials",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    # Get database session
-    async for db in get_db():
+    # db is provided by FastAPI dependency injection
+
+    try:
         result = await db.execute(
             select(User).where(User.id == user_id)
         )
         user = result.scalar_one_or_none()
 
+        logger.info(f"User query result: {user is not None}")
+
         if user is None:
+            logger.warning(f"User not found for user_id: {user_id}")
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="User not found",
@@ -174,12 +189,23 @@ async def get_current_user(
             )
 
         if user.deleted_at is not None:
+            logger.warning(f"User {user_id} is deactivated")
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Account has been deactivated"
             )
 
+        logger.info(f"Successfully authenticated user: {user.email}")
         return user
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error in get_current_user: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Could not validate credentials",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
 
 
 async def get_current_superuser(
