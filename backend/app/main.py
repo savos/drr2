@@ -12,10 +12,11 @@ from app.database.database import (
     ensure_database_exists,
     run_migrations,
 )
-from app.routers import health, auth, users, slack
-
-# Load environment variables
+ 
+# Load environment variables before importing routers that may read env at import time
 ENV_FILE = load_project_env()
+
+from app.routers import health, auth, users, slack, telegram, discord, teams
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -90,6 +91,9 @@ app.include_router(health.router, prefix="/api")
 app.include_router(auth.router, prefix="/api")
 app.include_router(users.router, prefix="/api")
 app.include_router(slack.router, prefix="/api")
+app.include_router(telegram.router, prefix="/api")
+app.include_router(discord.router, prefix="/api")
+app.include_router(teams.router, prefix="/api")
 
 
 if __name__ == "__main__":

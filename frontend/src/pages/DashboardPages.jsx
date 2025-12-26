@@ -1,5 +1,8 @@
 import StubPage from './StubPage';
 import Slack from './Slack';
+import Telegram from './Telegram';
+import Discord from './Discord';
+import Teams from './Teams';
 
 // Account Pages
 export function PlanPage() {
@@ -49,15 +52,15 @@ export function SlackChannelPage() {
 }
 
 export function TeamsChannelPage() {
-  return <StubPage title="Microsoft Teams" description="Integrate with MS Teams for team-wide notifications." />;
+  return <Teams />;
 }
 
 export function DiscordChannelPage() {
-  return <StubPage title="Discord Integration" description="Connect Discord to get alerts in your server." />;
+  return <Discord />;
 }
 
 export function TelegramChannelPage() {
-  return <StubPage title="Telegram Bot" description="Set up Telegram bot for instant domain alerts." />;
+  return <Telegram />;
 }
 
 // Automation Pages
