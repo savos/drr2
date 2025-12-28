@@ -1,8 +1,10 @@
 """Main FastAPI application."""
 import os
 import logging
+from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
 
 from app.config.env import load_project_env
@@ -85,6 +87,12 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Mount static files for .well-known directory (Microsoft Identity verification, etc.)
+well_known_path = Path(__file__).parent.parent / ".well-known"
+if well_known_path.exists():
+    app.mount("/.well-known", StaticFiles(directory=str(well_known_path)), name="well-known")
+    logger.info(f"Mounted .well-known directory at: {well_known_path}")
 
 # Include routers
 app.include_router(health.router, prefix="/api")
