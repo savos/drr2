@@ -142,4 +142,3 @@ jobs:
             cd ${{ secrets.DEPLOY_PATH }}
             git pull origin production
             ./deploy/deploy.sh
-
