@@ -14,10 +14,11 @@ from app.database.database import get_db
 
 
 # Test database URL - configurable via environment variable
-# Defaults to SQLite for CI/CD environments, can use MySQL in Docker
+# For GitHub Actions: mysql+aiomysql://root:test_root_password@mysql:3306/test_db
+# For Docker Compose: mysql+aiomysql://user:password@db:3306/test_db
 TEST_DATABASE_URL = os.getenv(
     "TEST_DATABASE_URL",
-    "sqlite+aiosqlite:///./test.db"  # SQLite default for CI/CD
+    "mysql+aiomysql://user:password@db:3306/test_db"
 )
 
 
