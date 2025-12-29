@@ -1,6 +1,7 @@
 """
 Pytest configuration and fixtures for backend tests.
 """
+import os
 import pytest
 import asyncio
 from typing import AsyncGenerator
@@ -12,8 +13,12 @@ from app.config.database import Base
 from app.database.database import get_db
 
 
-# Test database URL - uses a separate test database
-TEST_DATABASE_URL = "mysql+aiomysql://user:password@db:3306/test_db"
+# Test database URL - configurable via environment variable
+# Defaults to SQLite for CI/CD environments, can use MySQL in Docker
+TEST_DATABASE_URL = os.getenv(
+    "TEST_DATABASE_URL",
+    "sqlite+aiosqlite:///./test.db"  # SQLite default for CI/CD
+)
 
 
 @pytest.fixture(scope="session")
