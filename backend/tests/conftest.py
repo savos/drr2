@@ -14,7 +14,7 @@ from app.database.database import get_db
 
 
 # Test database URL - configurable via environment variable
-# For GitHub Actions: mysql+aiomysql://root:test_root_password@mysql:3306/test_db
+# For GitHub Actions: mysql+aiomysql://root:test_root_password@localhost:3306/test_db
 # For Docker Compose: mysql+aiomysql://user:password@db:3306/test_db
 TEST_DATABASE_URL = os.getenv(
     "TEST_DATABASE_URL",
