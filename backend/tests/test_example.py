@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from httpx import AsyncClient
 
 from app.models.users import User
+from app.models.company import Company
 
 
 @pytest.mark.asyncio
@@ -23,11 +24,19 @@ async def test_database_connection(async_session: AsyncSession):
 @pytest.mark.asyncio
 async def test_create_user(async_session: AsyncSession):
     """Test creating a user in the database."""
+    # First create a company (required for user)
+    company = Company(name="Test Company")
+    async_session.add(company)
+    await async_session.commit()
+    await async_session.refresh(company)
+
     # Create a test user
     user = User(
         email="test@example.com",
         hashed_password="fake_hashed_password",
-        is_active=True
+        firstname="John",
+        lastname="Doe",
+        company_id=company.id
     )
 
     async_session.add(user)
@@ -37,7 +46,9 @@ async def test_create_user(async_session: AsyncSession):
     # Verify user was created
     assert user.id is not None
     assert user.email == "test@example.com"
-    assert user.is_active is True
+    assert user.firstname == "John"
+    assert user.lastname == "Doe"
+    assert user.company_id == company.id
 
 
 @pytest.mark.asyncio
