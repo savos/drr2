@@ -1,5 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { authenticatedFetch } from '../utils/api';
+import GuildSelectionModal from '../components/GuildSelectionModal';
 import './Discord.css';
 
 function Discord() {
@@ -11,21 +13,22 @@ function Discord() {
   const [successMessage, setSuccessMessage] = useState(null);
   const [startLink, setStartLink] = useState('');
   const [botName, setBotName] = useState('');
+  const [showGuildModal, setShowGuildModal] = useState(false);
 
   // Check for validation callback
   useEffect(() => {
     const verified = searchParams.get('verified');
     const integrationId = searchParams.get('integration_id');
+    const success = searchParams.get('success');
+    const showGuildSelection = searchParams.get('show_guild_selection');
 
     if (verified && integrationId) {
       // Validation confirmed - update status to Active
       const updateStatus = async () => {
         try {
-          const token = localStorage.getItem('access_token');
-          const response = await fetch(`/api/discord/integrations/${integrationId}/verify`, {
+          const response = await authenticatedFetch(`/api/discord/integrations/${integrationId}/verify`, {
             method: 'POST',
             headers: {
-              'Authorization': `Bearer ${token}`,
               'Content-Type': 'application/json'
             },
             body: JSON.stringify({ token: verified })
@@ -45,6 +48,18 @@ function Discord() {
 
       updateStatus();
     }
+
+    // After OAuth success, check if we should show guild selection
+    if (success === 'true') {
+      if (showGuildSelection === 'true') {
+        setSuccessMessage('✅ Discord connected! Select which servers to integrate.');
+        setShowGuildModal(true);
+      } else {
+        setSuccessMessage('✅ Authorized with Discord. Next, invite the bot to a server and select a channel to receive notifications.');
+      }
+      // Clear query params (keep UX tidy)
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
   }, [searchParams]);
 
   const loadIntegrations = useCallback(async (showLoading = true) => {
@@ -52,15 +67,10 @@ function Discord() {
       if (showLoading) {
         setLoading(true);
       }
-      const token = localStorage.getItem('access_token');
 
       console.log('[Discord] Loading integrations...', showLoading ? '(with spinner)' : '(background)');
 
-      const response = await fetch('/api/discord/integrations', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
+      const response = await authenticatedFetch('/api/discord/integrations');
 
       if (response.ok) {
         const data = await response.json();
@@ -80,13 +90,7 @@ function Discord() {
 
   const loadStartLink = useCallback(async () => {
     try {
-      const token = localStorage.getItem('access_token');
-
-      const response = await fetch('/api/discord/oauth/url', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
+      const response = await authenticatedFetch('/api/discord/oauth/url');
 
       if (response.ok) {
         const data = await response.json();
@@ -122,13 +126,9 @@ function Discord() {
       setTestingConnection(integrationId);
       setError(null);
       setSuccessMessage(null);
-      const token = localStorage.getItem('access_token');
 
-      const response = await fetch(`/api/discord/integrations/${integrationId}/test`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+      const response = await authenticatedFetch(`/api/discord/integrations/${integrationId}/test`, {
+        method: 'POST'
       });
 
       const data = await response.json();
@@ -151,13 +151,8 @@ function Discord() {
     }
 
     try {
-      const token = localStorage.getItem('access_token');
-
-      const response = await fetch(`/api/discord/integrations/${integrationId}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+      const response = await authenticatedFetch(`/api/discord/integrations/${integrationId}`, {
+        method: 'DELETE'
       });
 
       if (response.ok) {
@@ -170,6 +165,18 @@ function Discord() {
     } catch (err) {
       setError('An error occurred. Please try again.');
     }
+  };
+
+  const handleGuildModalClose = () => {
+    setShowGuildModal(false);
+  };
+
+  const handleGuildModalSubmit = (result) => {
+    console.log('[Discord] Guild modal submitted, result:', result);
+    setShowGuildModal(false);
+    setSuccessMessage(`✅ Added ${result.added_count} channel integrations!`);
+    console.log('[Discord] Reloading integrations to show newly added channels...');
+    loadIntegrations(); // Reload to show new integrations
   };
 
   const getStatusBadge = (status) => {
@@ -198,11 +205,6 @@ function Discord() {
       <div className="page-header">
         <h1>Discord Integration</h1>
         <p className="subtitle">Connect your Discord account to receive domain and SSL certificate expiration notifications</p>
-        <div className="page-actions">
-          <button className="btn btn-secondary" onClick={() => loadIntegrations()}>
-            Refresh
-          </button>
-        </div>
       </div>
 
       {error && (
@@ -335,9 +337,18 @@ function Discord() {
             {integrations.map((integration) => {
               // Determine if this is a DM or guild/channel integration
               const isDM = !integration.guild_id; // no guild => DM
-              const displayName = isDM
-                ? (integration.global_name || integration.username || 'Direct Message')
-                : (integration.channel_id ? `Channel ${integration.channel_id}` : 'Server Channel');
+
+              // Display name logic: show channel name and guild for server channels
+              let displayName;
+              if (isDM) {
+                displayName = integration.global_name || integration.username || 'Direct Message';
+              } else {
+                const channelDisplay = integration.channel_name
+                  ? `#${integration.channel_name}`
+                  : `Channel ${integration.channel_id}`;
+                const guildDisplay = integration.guild_name || `Guild ${integration.guild_id}`;
+                displayName = `${channelDisplay} (${guildDisplay})`;
+              }
 
               return (
                 <div key={integration.id} className="integration-card">
@@ -403,6 +414,13 @@ function Discord() {
           </div>
         )}
       </div>
+
+      {/* Guild Selection Modal */}
+      <GuildSelectionModal
+        show={showGuildModal}
+        onClose={handleGuildModalClose}
+        onSubmit={handleGuildModalSubmit}
+      />
     </div>
   );
 }

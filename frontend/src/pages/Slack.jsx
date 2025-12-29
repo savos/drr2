@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { authenticatedFetch } from '../utils/api';
 import './Slack.css';
 
 function Slack() {
@@ -27,10 +28,8 @@ function Slack() {
           const stored = localStorage.getItem(`slack_verify_token::${verifiedIntegrationId}`);
           if (stored && stored === verifiedToken) {
             // Call backend to flip status to Active
-            const token = localStorage.getItem('access_token');
-            const resp = await fetch(`/api/slack/integrations/${verifiedIntegrationId}/verify`, {
-              method: 'POST',
-              headers: { 'Authorization': `Bearer ${token}` }
+            const resp = await authenticatedFetch(`/api/slack/integrations/${verifiedIntegrationId}/verify`, {
+              method: 'POST'
             });
             if (resp.ok) {
               setSuccessMessage('✅ Slack DM verified and integration activated.');
@@ -71,45 +70,55 @@ function Slack() {
     }
   }, [searchParams]);
 
-  useEffect(() => {
-    loadIntegrations();
-  }, []);
-
-  const loadIntegrations = async () => {
+  const loadIntegrations = useCallback(async (showLoading = true) => {
     try {
-      setLoading(true);
-      const token = localStorage.getItem('access_token');
+      if (showLoading) {
+        setLoading(true);
+      }
 
-      const response = await fetch('/api/slack/integrations', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
+      console.log('[Slack] Loading integrations...', showLoading ? '(with spinner)' : '(background)');
+
+      const response = await authenticatedFetch('/api/slack/integrations');
 
       if (response.ok) {
         const data = await response.json();
+        console.log('[Slack] Loaded', data.length, 'integrations');
         setIntegrations(data);
       } else {
-        console.error('Failed to load integrations');
+        console.error('[Slack] Failed to load integrations');
       }
     } catch (err) {
-      console.error('Error loading integrations:', err);
+      console.error('[Slack] Error loading integrations:', err);
     } finally {
-      setLoading(false);
+      if (showLoading) {
+        setLoading(false);
+      }
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    console.log('[Slack] Setting up auto-refresh (every 10 seconds)');
+    loadIntegrations();
+
+    // Set up auto-refresh every 10 seconds to detect new channels
+    const intervalId = setInterval(() => {
+      console.log('[Slack] Auto-refresh triggered');
+      loadIntegrations(false); // Don't show loading spinner during background refresh
+    }, 10000); // 10 seconds
+
+    // Cleanup interval on unmount
+    return () => {
+      console.log('[Slack] Clearing auto-refresh interval');
+      clearInterval(intervalId);
+    };
+  }, [loadIntegrations]);
 
   const handleConnectSlack = async () => {
     try {
       setConnectingOAuth(true);
       setError(null);
-      const token = localStorage.getItem('access_token');
 
-      const response = await fetch('/api/slack/oauth/url', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
+      const response = await authenticatedFetch('/api/slack/oauth/url');
 
       if (response.ok) {
         const data = await response.json();
@@ -130,7 +139,6 @@ function Slack() {
       setTestingConnection(integrationId);
       setError(null);
       setSuccessMessage(null);
-      const token = localStorage.getItem('access_token');
 
       // Generate a short client-side verification token (<=16 chars)
       const rand = Math.random().toString(36).slice(2, 10);
@@ -138,11 +146,8 @@ function Slack() {
       const trimmed = verifyToken.slice(0, 16);
       localStorage.setItem(`slack_verify_token::${integrationId}`, trimmed);
 
-      const response = await fetch(`/api/slack/integrations/${integrationId}/test?verify_token=${encodeURIComponent(trimmed)}`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+      const response = await authenticatedFetch(`/api/slack/integrations/${integrationId}/test?verify_token=${encodeURIComponent(trimmed)}`, {
+        method: 'POST'
       });
 
       const data = await response.json();
@@ -166,13 +171,8 @@ function Slack() {
     }
 
     try {
-      const token = localStorage.getItem('access_token');
-
-      const response = await fetch(`/api/slack/integrations/${integrationId}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+      const response = await authenticatedFetch(`/api/slack/integrations/${integrationId}`, {
+        method: 'DELETE'
       });
 
       if (response.ok) {
@@ -297,56 +297,70 @@ function Slack() {
           </div>
         ) : (
           <div className="integrations-grid">
-            {integrations.map((integration) => (
-              <div key={integration.id} className="integration-card">
-                <div className="integration-header">
-                  <div className="integration-info">
-                    <h3>{integration.workspace_name || 'Slack Workspace'}</h3>
-                    <p className="workspace-id">ID: {integration.workspace_id}</p>
-                  </div>
-                  {getStatusBadge(integration.status)}
-                </div>
+            {integrations.map((integration) => {
+              // Determine if this is a DM or channel integration
+              const isDM = integration.channel_id === integration.slack_user_id;
+              const displayName = isDM
+                ? 'Direct Message'
+                : (integration.channel_name ? `#${integration.channel_name}` : `Channel ${integration.channel_id}`);
 
-                <div className="integration-meta">
-                  <div className="meta-item">
-                    <span className="meta-label">Connected:</span>
-                    <span className="meta-value">
-                      {new Date(integration.created_at).toLocaleDateString()}
-                    </span>
-                  </div>
-                  {integration.slack_user_id && (
-                    <div className="meta-item">
-                      <span className="meta-label">User ID:</span>
-                      <span className="meta-value">{integration.slack_user_id}</span>
+              return (
+                <div key={integration.id} className="integration-card">
+                  <div className="integration-header">
+                    <div className="integration-info">
+                      <h3>{displayName}</h3>
+                      <p className="workspace-id">{integration.workspace_name || 'Slack Workspace'}</p>
                     </div>
-                  )}
-                </div>
+                    {getStatusBadge(integration.status)}
+                  </div>
 
-                <div className="integration-actions">
-                  <button
-                    className="btn btn-secondary btn-sm"
-                    onClick={() => handleTestConnection(integration.id)}
-                    disabled={testingConnection === integration.id}
-                  >
-                    {testingConnection === integration.id ? (
-                      <>
-                        <span className="spinner-sm"></span>
-                        Testing...
-                      </>
-                    ) : (
-                      '🧪 Test Connection'
+                  <div className="integration-meta">
+                    <div className="meta-item">
+                      <span className="meta-label">Type:</span>
+                      <span className="meta-value">{isDM ? 'Direct Message' : 'Channel'}</span>
+                    </div>
+                    <div className="meta-item">
+                      <span className="meta-label">Connected:</span>
+                      <span className="meta-value">
+                        {new Date(integration.created_at).toLocaleDateString()}
+                      </span>
+                    </div>
+                    {!isDM && integration.channel_id && (
+                      <div className="meta-item">
+                        <span className="meta-label">Channel ID:</span>
+                        <span className="meta-value">{integration.channel_id}</span>
+                      </div>
                     )}
-                  </button>
+                  </div>
 
-                  <button
-                    className="btn btn-danger btn-sm"
-                    onClick={() => handleDeleteIntegration(integration.id)}
-                  >
-                    🗑️ Disconnect
-                  </button>
+                  <div className="integration-actions">
+                    <button
+                      className="btn btn-secondary btn-sm"
+                      onClick={() => handleTestConnection(integration.id)}
+                      disabled={testingConnection === integration.id}
+                    >
+                      {testingConnection === integration.id ? (
+                        <>
+                          <span className="spinner-sm"></span>
+                          Testing...
+                        </>
+                      ) : (
+                        '🧪 Test Connection'
+                      )}
+                    </button>
+
+                    {isDM && (
+                      <button
+                        className="btn btn-danger btn-sm"
+                        onClick={() => handleDeleteIntegration(integration.id)}
+                      >
+                        🗑️ Disconnect
+                      </button>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

@@ -1,4 +1,4 @@
-.telegram-page {
+.discord-page {
   padding: 2rem;
   max-width: 1200px;
   margin: 0 auto;
@@ -133,7 +133,7 @@
   width: 40px;
   height: 40px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #0088cc 0%, #005580 100%);
+  background: linear-gradient(135deg, #5865F2 0%, #4752C4 100%);
   color: white;
   display: flex;
   align-items: center;
@@ -161,7 +161,7 @@
   padding-top: 1rem;
 }
 
-.telegram-icon {
+.discord-icon {
   font-size: 1.25rem;
 }
 
@@ -192,14 +192,14 @@
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, #0088cc 0%, #005580 100%);
+  background: linear-gradient(135deg, #5865F2 0%, #4752C4 100%);
   color: white;
-  box-shadow: 0 2px 4px rgba(0, 136, 204, 0.2);
+  box-shadow: 0 2px 4px rgba(88, 101, 242, 0.2);
 }
 
 .btn-primary:hover:not(:disabled) {
   transform: translateY(-1px);
-  box-shadow: 0 4px 8px rgba(0, 136, 204, 0.3);
+  box-shadow: 0 4px 8px rgba(88, 101, 242, 0.3);
 }
 
 .btn-large {
@@ -209,12 +209,12 @@
 
 .btn-secondary {
   background: white;
-  color: #0088cc;
-  border: 2px solid #0088cc;
+  color: #5865F2;
+  border: 2px solid #5865F2;
 }
 
 .btn-secondary:hover:not(:disabled) {
-  background: #e6f5fc;
+  background: #f0f1ff;
 }
 
 .btn-danger {
@@ -334,8 +334,8 @@
 }
 
 .status-enabled {
-  background: #e6f3ff;
-  color: #0066cc;
+  background: #e8eaff;
+  color: #5865F2;
 }
 
 .status-active {
@@ -411,7 +411,7 @@
 
 /* Responsive */
 @media (max-width: 768px) {
-  .telegram-page {
+  .discord-page {
     padding: 1rem;
   }
 

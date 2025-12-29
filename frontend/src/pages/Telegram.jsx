@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { authenticatedFetch } from '../utils/api';
 import './Telegram.css';
 
 function Telegram() {
@@ -21,11 +22,9 @@ function Telegram() {
       // Validation confirmed - update status to Active
       const updateStatus = async () => {
         try {
-          const token = localStorage.getItem('access_token');
-          const response = await fetch(`/api/telegram/integrations/${integrationId}/verify`, {
+          const response = await authenticatedFetch(`/api/telegram/integrations/${integrationId}/verify`, {
             method: 'POST',
             headers: {
-              'Authorization': `Bearer ${token}`,
               'Content-Type': 'application/json'
             },
             body: JSON.stringify({ token: verified })
@@ -52,15 +51,10 @@ function Telegram() {
       if (showLoading) {
         setLoading(true);
       }
-      const token = localStorage.getItem('access_token');
 
       console.log('[Telegram] Loading integrations...', showLoading ? '(with spinner)' : '(background)');
 
-      const response = await fetch('/api/telegram/integrations', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
+      const response = await authenticatedFetch('/api/telegram/integrations');
 
       if (response.ok) {
         const data = await response.json();
@@ -80,13 +74,7 @@ function Telegram() {
 
   const loadStartLink = useCallback(async () => {
     try {
-      const token = localStorage.getItem('access_token');
-
-      const response = await fetch('/api/telegram/start/link', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
+      const response = await authenticatedFetch('/api/telegram/start/link');
 
       if (response.ok) {
         const data = await response.json();
@@ -122,13 +110,9 @@ function Telegram() {
       setTestingConnection(integrationId);
       setError(null);
       setSuccessMessage(null);
-      const token = localStorage.getItem('access_token');
 
-      const response = await fetch(`/api/telegram/integrations/${integrationId}/test`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+      const response = await authenticatedFetch(`/api/telegram/integrations/${integrationId}/test`, {
+        method: 'POST'
       });
 
       const data = await response.json();
@@ -151,13 +135,8 @@ function Telegram() {
     }
 
     try {
-      const token = localStorage.getItem('access_token');
-
-      const response = await fetch(`/api/telegram/integrations/${integrationId}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+      const response = await authenticatedFetch(`/api/telegram/integrations/${integrationId}`, {
+        method: 'DELETE'
       });
 
       if (response.ok) {

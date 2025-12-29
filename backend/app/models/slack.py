@@ -24,7 +24,8 @@ class Slack(Base):
     bot_token = Column(Text, nullable=False)
     bot_user_id = Column(String(32), nullable=True)
     slack_user_id = Column(String(32), nullable=True)
-    channel_id = Column(String(32), nullable=True)
+    channel_id = Column(String(32), nullable=False, comment="DM channel ID (slack_user_id) or group channel ID")
+    channel_name = Column(String(255), nullable=True, comment="Channel name for group channels, NULL for DMs")
     status = Column(
         SQLAlchemyEnum(SlackStatus, native_enum=False, length=20),
         nullable=False,

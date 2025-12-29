@@ -31,7 +31,7 @@ class DiscordConsumer:
 
     def get_oauth_url(self, state: str) -> str:
         """Get Discord OAuth2 authorization URL."""
-        scopes = "identify"
+        scopes = "identify guilds"
         return (
             f"https://discord.com/api/oauth2/authorize"
             f"?client_id={self.client_id}"
@@ -91,6 +91,27 @@ class DiscordConsumer:
 
             except httpx.HTTPError as e:
                 logger.error(f"HTTP error getting Discord user: {e}")
+                raise DiscordAPIError(f"HTTP error: {str(e)}")
+
+    async def get_user_guilds(self, access_token: str) -> list[Dict[str, Any]]:
+        """Get user's guilds using OAuth2 access token."""
+        async with httpx.AsyncClient() as client:
+            try:
+                response = await client.get(
+                    f"{self.api_base}/users/@me/guilds",
+                    headers={"Authorization": f"Bearer {access_token}"},
+                    timeout=10.0
+                )
+
+                if response.status_code != 200:
+                    error_msg = f"Get user guilds failed with status {response.status_code}"
+                    logger.error(f"Discord API error getting user guilds: {error_msg}")
+                    raise DiscordAPIError(error_msg)
+
+                return response.json()
+
+            except httpx.HTTPError as e:
+                logger.error(f"HTTP error getting Discord user guilds: {e}")
                 raise DiscordAPIError(f"HTTP error: {str(e)}")
 
     async def create_dm_channel(self, user_id: str) -> Dict[str, Any]:
@@ -164,6 +185,74 @@ class DiscordConsumer:
 
         return await self.send_message(channel_id, content)
 
+    async def get_bot_guilds(self) -> list[Dict[str, Any]]:
+        """Get all guilds (servers) the bot is a member of."""
+        async with httpx.AsyncClient() as client:
+            try:
+                response = await client.get(
+                    f"{self.api_base}/users/@me/guilds",
+                    headers={
+                        "Authorization": f"Bot {self.bot_token}",
+                    },
+                    timeout=10.0
+                )
+
+                if response.status_code != 200:
+                    error_msg = f"Get guilds failed with status {response.status_code}"
+                    logger.error(f"Discord API error getting guilds: {error_msg}")
+                    raise DiscordAPIError(error_msg)
+
+                return response.json()
+
+            except httpx.HTTPError as e:
+                logger.error(f"HTTP error getting Discord guilds: {e}")
+                raise DiscordAPIError(f"HTTP error: {str(e)}")
+
+    async def get_guild_channels(self, guild_id: str) -> list[Dict[str, Any]]:
+        """Get all channels in a guild."""
+        async with httpx.AsyncClient() as client:
+            try:
+                response = await client.get(
+                    f"{self.api_base}/guilds/{guild_id}/channels",
+                    headers={
+                        "Authorization": f"Bot {self.bot_token}",
+                    },
+                    timeout=10.0
+                )
+
+                if response.status_code != 200:
+                    error_msg = f"Get guild channels failed with status {response.status_code}"
+                    logger.error(f"Discord API error getting guild channels: {error_msg}")
+                    raise DiscordAPIError(error_msg)
+
+                return response.json()
+
+            except httpx.HTTPError as e:
+                logger.error(f"HTTP error getting Discord guild channels: {e}")
+                raise DiscordAPIError(f"HTTP error: {str(e)}")
+
+    async def get_channel_info(self, channel_id: str) -> Dict[str, Any]:
+        """Get information about a specific channel."""
+        async with httpx.AsyncClient() as client:
+            try:
+                response = await client.get(
+                    f"{self.api_base}/channels/{channel_id}",
+                    headers={
+                        "Authorization": f"Bot {self.bot_token}",
+                    },
+                    timeout=10.0
+                )
+
+                if response.status_code != 200:
+                    error_msg = f"Get channel info failed with status {response.status_code}"
+                    logger.error(f"Discord API error getting channel info: {error_msg}")
+                    raise DiscordAPIError(error_msg)
+
+                return response.json()
+
+            except httpx.HTTPError as e:
+                logger.error(f"HTTP error getting Discord channel info: {e}")
+                raise DiscordAPIError(f"HTTP error: {str(e)}")
 
 
 # Global instance

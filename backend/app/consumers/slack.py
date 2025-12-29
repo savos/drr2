@@ -35,11 +35,15 @@ class SlackConsumer:
             OAuth authorization URL
         """
         scopes = [
+            "channels:read",        # View basic channel info
+            "channels:join",        # Join public channels when invited
             "chat:write",           # Send messages
-            "users:read",           # Read user information
-            "users:read.email",     # Read user email
+            "groups:read",          # View private channels
+            "im:read",              # View DM channel info
             "im:write",             # Open and send DMs
-            "im:history",           # Read DM history
+            "mpim:read",            # Read multi-party DMs
+            "mpim:write",           # Write to multi-party DMs
+            "users:read",           # Read user information
         ]
 
         scope_string = ",".join(scopes)
@@ -212,6 +216,98 @@ class SlackConsumer:
 
             except httpx.HTTPError as e:
                 logger.error(f"HTTP error sending Slack message: {e}")
+                raise SlackAPIError(f"HTTP error: {str(e)}")
+
+    async def get_bot_channels(self, access_token: str, bot_user_id: str) -> list[Dict[str, Any]]:
+        """
+        Get all channels/conversations the bot is a member of.
+
+        Args:
+            access_token: Slack access token
+            bot_user_id: Bot user ID
+
+        Returns:
+            List of channel info dicts
+
+        Raises:
+            SlackAPIError: If API call fails
+        """
+        async with httpx.AsyncClient() as client:
+            try:
+                all_channels = []
+                cursor = None
+
+                while True:
+                    params = {
+                        "user": bot_user_id,
+                        "types": "public_channel,private_channel",  # Only channels, not DMs
+                        "exclude_archived": "true",
+                        "limit": 100
+                    }
+                    if cursor:
+                        params["cursor"] = cursor
+
+                    response = await client.get(
+                        "https://slack.com/api/users.conversations",
+                        headers={"Authorization": f"Bearer {access_token}"},
+                        params=params
+                    )
+
+                    data = response.json()
+
+                    if not data.get("ok"):
+                        error_msg = data.get("error", "Unknown error")
+                        logger.error(f"Slack API error getting bot channels: {error_msg}")
+                        raise SlackAPIError(f"Failed to get bot channels: {error_msg}")
+
+                    channels = data.get("channels", [])
+                    all_channels.extend(channels)
+
+                    # Check if there are more pages
+                    cursor = data.get("response_metadata", {}).get("next_cursor")
+                    if not cursor:
+                        break
+
+                logger.info(f"Found {len(all_channels)} channels for bot {bot_user_id}")
+                return all_channels
+
+            except httpx.HTTPError as e:
+                logger.error(f"HTTP error getting bot channels: {e}")
+                raise SlackAPIError(f"HTTP error: {str(e)}")
+
+    async def get_channel_info(self, access_token: str, channel_id: str) -> Dict[str, Any]:
+        """
+        Get information about a Slack channel.
+
+        Args:
+            access_token: Slack access token
+            channel_id: Channel ID
+
+        Returns:
+            Channel information dict
+
+        Raises:
+            SlackAPIError: If API call fails
+        """
+        async with httpx.AsyncClient() as client:
+            try:
+                response = await client.get(
+                    "https://slack.com/api/conversations.info",
+                    headers={"Authorization": f"Bearer {access_token}"},
+                    params={"channel": channel_id}
+                )
+
+                data = response.json()
+
+                if not data.get("ok"):
+                    error_msg = data.get("error", "Unknown error")
+                    logger.error(f"Slack API error getting channel info: {error_msg}")
+                    raise SlackAPIError(f"Failed to get channel info: {error_msg}")
+
+                return data.get("channel", {})
+
+            except httpx.HTTPError as e:
+                logger.error(f"HTTP error getting Slack channel info: {e}")
                 raise SlackAPIError(f"HTTP error: {str(e)}")
 
     async def send_test_message(self, access_token: str, user_id: str, verification_url: Optional[str] = None) -> bool:

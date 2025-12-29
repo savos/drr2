@@ -3,8 +3,8 @@ import os
 import uuid
 import logging
 from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException, status, Query
-from fastapi.responses import RedirectResponse
+from fastapi import APIRouter, Depends, HTTPException, status, Query, Request
+from fastapi.responses import RedirectResponse, JSONResponse
 from urllib.parse import urlparse
 from datetime import datetime, timedelta
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -18,6 +18,9 @@ from app.utils.security import get_current_user, SECRET_KEY, ALGORITHM
 from app.consumers.slack import slack_consumer, SlackAPIError
 from app.services.slack import slack_service
 from jose import jwt, JWTError
+import hmac
+import hashlib
+import time
 
 logger = logging.getLogger(__name__)
 
@@ -140,9 +143,10 @@ async def oauth_callback(
                 url=f"{frontend_url}/dashboard/channels/slack?error=missing_data"
             )
 
-        # Store integration in database
+        # Store DM integration in database
+        # For OAuth, we create a DM integration with channel_id = slack_user_id
         try:
-            await slack_service.create_slack_integration(
+            dm_integration = await slack_service.create_slack_integration(
                 db=db,
                 user_id=user_id,
                 workspace_id=workspace_id,
@@ -150,10 +154,42 @@ async def oauth_callback(
                 access_token=access_token,
                 bot_user_id=bot_user_id,
                 slack_user_id=slack_user_id,
+                channel_id=slack_user_id,  # DM channel ID is the user's ID
+                channel_name=None,  # NULL for DMs
                 status=SlackStatus.ENABLED
             )
 
-            logger.info(f"Slack integration created for user {user_id}, workspace {workspace_id}")
+            logger.info(f"Slack DM integration created for user {user_id}, workspace {workspace_id}")
+
+            # Fetch all channels the bot is already a member of
+            channels_added = 0
+            if bot_user_id:
+                try:
+                    bot_channels = await slack_consumer.get_bot_channels(access_token, bot_user_id)
+                    logger.info(f"Bot is member of {len(bot_channels)} channels in workspace {workspace_id}")
+
+                    # Create integrations for each channel
+                    for channel in bot_channels:
+                        channel_id = channel.get("id")
+                        channel_name = channel.get("name") or channel.get("name_normalized")
+
+                        if channel_id:
+                            try:
+                                await slack_service.create_channel_integration(
+                                    db=db,
+                                    workspace_integration=dm_integration,
+                                    channel_id=channel_id,
+                                    channel_name=channel_name
+                                )
+                                channels_added += 1
+                                logger.info(f"Added channel {channel_id} ({channel_name}) for user {user_id}")
+                            except Exception as e:
+                                logger.warning(f"Failed to add channel {channel_id}: {e}")
+
+                    logger.info(f"Added {channels_added} existing channels for user {user_id}")
+
+                except Exception as e:
+                    logger.warning(f"Failed to fetch bot channels, continuing anyway: {e}")
 
             frontend_url = os.getenv("FRONTEND_URL", "http://localhost:3000")
             return RedirectResponse(
@@ -186,6 +222,105 @@ async def oauth_callback_alias(
     db: AsyncSession = Depends(get_db)
 ):
     return await oauth_callback(code=code, state=state, db=db)
+
+
+def _verify_slack_signature(request: Request, body: bytes, signing_secret: str) -> bool:
+    ts = request.headers.get("X-Slack-Request-Timestamp", "0")
+    sig = request.headers.get("X-Slack-Signature", "")
+    # Prevent replay attacks (5 minutes window)
+    try:
+        if abs(int(time.time()) - int(ts)) > 60 * 5:
+            return False
+    except Exception:
+        return False
+    base = f"v0:{ts}:".encode() + body
+    digest = hmac.new(signing_secret.encode(), base, hashlib.sha256).hexdigest()
+    expected = f"v0={digest}"
+    return hmac.compare_digest(expected, sig)
+
+
+@router.post("/events")
+async def slack_events(request: Request, db: AsyncSession = Depends(get_db)):
+    """
+    Slack Events API endpoint.
+
+    - Verifies Slack signature using SLACK_SIGNING_SECRET
+    - Handles url_verification
+    - On member_joined_channel for our bot user, associates the channel with the integration
+    """
+    # Parse payload first to support Slack URL verification without blocking on signature
+    raw_body = await request.body()
+    try:
+        logger.info(
+            f"Slack events: received {len(raw_body)} bytes, headers x-slack-signature=%s, x-slack-request-timestamp=%s",
+            request.headers.get("X-Slack-Signature"),
+            request.headers.get("X-Slack-Request-Timestamp"),
+        )
+    except Exception:
+        logger.exception("Slack events: failed to log headers")
+    try:
+        payload = await request.json()
+    except Exception:
+        payload = {}
+
+    # URL verification challenge (respond immediately)
+    if payload.get("type") == "url_verification":
+        logger.info("Slack events: url_verification received, responding with challenge")
+        return JSONResponse(content={"challenge": payload.get("challenge", "")})
+
+    # Verify signature for event callbacks
+    signing_secret = os.getenv("SLACK_SIGNING_SECRET")
+    if not signing_secret:
+        logger.error("Slack events: SLACK_SIGNING_SECRET not configured")
+        return JSONResponse(status_code=500, content={"error": "Signing secret not configured"})
+
+    if not _verify_slack_signature(request, raw_body, signing_secret):
+        logger.warning("Slack events: invalid signature")
+        return JSONResponse(status_code=401, content={"error": "Invalid signature"})
+
+    if payload.get("type") == "event_callback":
+        event = payload.get("event", {})
+        team_id = payload.get("team_id") or event.get("team")
+        event_type = event.get("type")
+        logger.info("Slack events: event_callback type=%s team_id=%s", event_type, team_id)
+        if event_type == "member_joined_channel":
+            bot_user = event.get("user")
+            channel_id = event.get("channel")
+            logger.info("Slack events: member_joined_channel user=%s channel=%s", bot_user, channel_id)
+
+            if team_id and bot_user and channel_id:
+                # Find existing workspace integrations (DMs) for this workspace/bot
+                integrations = await slack_service.get_by_workspace_and_bot_user(db, team_id, bot_user)
+                logger.info("Slack events: matched %d integration(s) for workspace/bot", len(integrations))
+
+                # Create a new integration for this channel based on the first workspace integration
+                if integrations:
+                    base_integration = integrations[0]  # Use any existing integration as template
+
+                    # Fetch channel info to get the channel name
+                    channel_name = None
+                    try:
+                        channel_info = await slack_consumer.get_channel_info(base_integration.bot_token, channel_id)
+                        channel_name = channel_info.get("name") or channel_info.get("name_normalized")
+                        logger.info("Slack events: channel name=%s", channel_name)
+                    except Exception as e:
+                        logger.warning(f"Failed to get channel name for {channel_id}: {e}")
+
+                    # Create new channel integration
+                    try:
+                        await slack_service.create_channel_integration(
+                            db=db,
+                            workspace_integration=base_integration,
+                            channel_id=channel_id,
+                            channel_name=channel_name
+                        )
+                        logger.info(f"Created channel integration for channel {channel_id} ({channel_name})")
+                    except Exception as e:
+                        logger.error(f"Failed to create channel integration: {e}")
+
+        return JSONResponse(content={"ok": True})
+
+    return JSONResponse(content={"ok": True})
 
 
 @router.get("/integrations", response_model=list[SlackRead])
@@ -277,18 +412,32 @@ async def test_connection(
 
         # Send test message
         try:
-            await slack_consumer.send_test_message(
-                access_token=integration.bot_token,
-                user_id=integration.slack_user_id,
-                verification_url=verification_url
-            )
+            # Check if this is a DM or channel integration
+            is_dm = integration.channel_id == integration.slack_user_id
 
-            # Do NOT set Active on test; only after user confirms via Slack link
-            logger.info(f"Test message sent successfully for integration {integration_id}")
+            if is_dm:
+                # Send test message to DM
+                await slack_consumer.send_test_message(
+                    access_token=integration.bot_token,
+                    user_id=integration.slack_user_id,
+                    verification_url=verification_url
+                )
+                logger.info(f"Test DM sent successfully for integration {integration_id}")
+                message = "Test message sent to your Slack DM. Please click '✅ Confirm in DRR' to activate."
+            else:
+                # Send test message to channel
+                channel_name_display = f"#{integration.channel_name}" if integration.channel_name else integration.channel_id
+                await slack_consumer.send_message(
+                    access_token=integration.bot_token,
+                    channel_id=integration.channel_id,
+                    text=f"✅ DRR test: channel {channel_name_display} is connected and ready to receive notifications.",
+                )
+                logger.info(f"Test message sent to channel {integration.channel_id} for integration {integration_id}")
+                message = f"Test message sent to {channel_name_display}. Check Slack to confirm."
 
             return TestConnectionResponse(
                 success=True,
-                message="Test message sent. Please click '✅ Confirm in DRR' in your Slack DM."
+                message=message
             )
 
         except SlackAPIError as e:

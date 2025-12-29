@@ -19,7 +19,8 @@ class SlackBase(BaseModel):
     bot_token: str
     bot_user_id: Optional[str] = Field(None, max_length=32)
     slack_user_id: Optional[str] = Field(None, max_length=32)
-    channel_id: Optional[str] = Field(None, max_length=32)
+    channel_id: str = Field(..., max_length=32, description="DM channel ID (slack_user_id) or group channel ID")
+    channel_name: Optional[str] = Field(None, max_length=255, description="Channel name (NULL for DMs)")
     status: SlackStatus = Field(default=SlackStatus.DISABLED)
 
 
@@ -35,7 +36,7 @@ class SlackUpdate(BaseModel):
     bot_token: Optional[str] = None
     bot_user_id: Optional[str] = Field(None, max_length=32)
     slack_user_id: Optional[str] = Field(None, max_length=32)
-    channel_id: Optional[str] = Field(None, max_length=32)
+    channel_name: Optional[str] = Field(None, max_length=255)
     status: Optional[SlackStatus] = None
 
 
