@@ -133,6 +133,16 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Debug DEPLOY_SSH_KEY fingerprint (safe)
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          KEY_FILE="$(mktemp)"
+          printf '%s\n' "${{ secrets.DEPLOY_SSH_KEY }}" > "$KEY_FILE"
+          ssh-keygen -lf "$KEY_FILE"
+          rm -f "$KEY_FILE"
+
       - name: Deploy to server
         uses: appleboy/ssh-action@v1.0.0
         with:
