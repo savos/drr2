@@ -133,14 +133,14 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Debug current DEPLOY_SSH_KEY fingerprint (safe)
+      - name: Print public key for DEPLOY_SSH_KEY (safe)
         shell: bash
         run: |
           set -euo pipefail
           umask 077
           f="$(mktemp)"
           printf '%s\n' "${{ secrets.DEPLOY_SSH_KEY }}" > "$f"
-          ssh-keygen -lf "$f"
+          ssh-keygen -y -f "$f"
           rm -f "$f"
 
 
