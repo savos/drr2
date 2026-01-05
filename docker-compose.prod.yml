@@ -19,7 +19,7 @@ services:
       backend:
         condition: service_started
     expose:
-      - "3000"
+      - "3000:3000"
     ports: []
     restart: unless-stopped
 
