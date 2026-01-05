@@ -133,15 +133,15 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Debug DEPLOY_SSH_KEY fingerprint (safe)
+      - name: Debug deploy secrets presence (safe)
         shell: bash
         run: |
           set -euo pipefail
-          umask 077
-          f="$(mktemp)"
-          printf '%s\n' "${{ secrets.DEPLOY_SSH_KEY }}" > "$f"
-          ssh-keygen -lf "$f"
-          rm -f "$f"
+          echo "DEPLOY_HOST set? -> ${{ secrets.DEPLOY_HOST != '' }}"
+          echo "DEPLOY_USER set? -> ${{ secrets.DEPLOY_USER != '' }}"
+          echo "DEPLOY_SSH_KEY set? -> ${{ secrets.DEPLOY_SSH_KEY != '' }}"
+          echo "DEPLOY_PATH set? -> ${{ secrets.DEPLOY_PATH != '' }}"
+
 
       - name: Deploy to server
         uses: appleboy/ssh-action@v1.0.0
