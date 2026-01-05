@@ -123,6 +123,7 @@ jobs:
   deploy:
     name: Deploy to Production
     runs-on: ubuntu-latest
+    environment: production
     needs:
       - backend-tests
       - frontend-build
