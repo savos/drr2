@@ -1,0 +1,140 @@
+.under-development {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: calc(100vh - 80px);
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding: 2rem;
+}
+
+.under-development-content {
+  text-align: center;
+  color: white;
+  max-width: 500px;
+  animation: fadeInUp 0.8s ease-out;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.under-development-icon {
+  width: 80px;
+  height: 80px;
+  margin: 0 auto 1.5rem;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+.under-development-icon svg {
+  width: 40px;
+  height: 40px;
+  color: white;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.4);
+  }
+  50% {
+    transform: scale(1.05);
+    box-shadow: 0 0 0 15px rgba(255, 255, 255, 0);
+  }
+}
+
+.under-development-domain {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.3em;
+  opacity: 0.8;
+  margin-bottom: 1rem;
+}
+
+.under-development-title {
+  font-size: 2.5rem;
+  font-weight: 700;
+  margin-bottom: 0.75rem;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+}
+
+.under-development-subtitle {
+  font-size: 1.1rem;
+  opacity: 0.9;
+  margin-bottom: 2rem;
+  line-height: 1.6;
+}
+
+.under-development-progress {
+  width: 200px;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 2px;
+  margin: 0 auto 1rem;
+  overflow: hidden;
+}
+
+.under-development-progress-bar {
+  width: 40%;
+  height: 100%;
+  background: white;
+  border-radius: 2px;
+  animation: loading 2s ease-in-out infinite;
+}
+
+@keyframes loading {
+  0% {
+    transform: translateX(-100%);
+  }
+  50% {
+    transform: translateX(150%);
+  }
+  100% {
+    transform: translateX(-100%);
+  }
+}
+
+.under-development-coming-soon {
+  font-size: 0.875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  opacity: 0.8;
+}
+
+/* Responsive adjustments */
+@media (max-width: 640px) {
+  .under-development {
+    min-height: calc(100vh - 60px);
+    padding: 1.5rem;
+  }
+
+  .under-development-icon {
+    width: 60px;
+    height: 60px;
+  }
+
+  .under-development-icon svg {
+    width: 30px;
+    height: 30px;
+  }
+
+  .under-development-title {
+    font-size: 1.75rem;
+  }
+
+  .under-development-subtitle {
+    font-size: 1rem;
+  }
+}

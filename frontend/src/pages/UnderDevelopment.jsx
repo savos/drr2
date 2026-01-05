@@ -1,17 +1,31 @@
 import React from "react";
+import "./UnderDevelopment.css";
 
 export default function UnderDevelopment() {
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-white text-center text-gray-800 p-4 sm:p-6 md:p-8">
-      <p className="text-xs sm:text-sm md:text-base uppercase tracking-[0.3em] text-gray-500 px-4">
-        www.domainrenewalreminder.com
-      </p>
-      <h1 className="mt-4 sm:mt-6 md:mt-8 text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-semibold tracking-wide px-4">
-        Under Development
-      </h1>
-      <p className="mt-2 sm:mt-3 md:mt-4 text-base sm:text-lg md:text-xl lg:text-2xl text-gray-600 px-4">
-        Coming soon...
-      </p>
+    <div className="under-development">
+      <div className="under-development-content">
+        <div className="under-development-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 19V5M5 12l7-7 7 7"/>
+          </svg>
+        </div>
+        <p className="under-development-domain">
+          www.domainrenewalreminder.com
+        </p>
+        <h1 className="under-development-title">
+          Under Development
+        </h1>
+        <p className="under-development-subtitle">
+          We're working hard to bring you something amazing.
+        </p>
+        <div className="under-development-progress">
+          <div className="under-development-progress-bar"></div>
+        </div>
+        <p className="under-development-coming-soon">
+          Coming Soon
+        </p>
+      </div>
     </div>
   );
 }
