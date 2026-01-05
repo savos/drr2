@@ -19,9 +19,6 @@ export default function UnderDevelopment() {
         <p className="under-development-subtitle">
           We're working hard to bring you something amazing.
         </p>
-        <div className="under-development-progress">
-          <div className="under-development-progress-bar"></div>
-        </div>
         <p className="under-development-coming-soon">
           Coming Soon
         </p>

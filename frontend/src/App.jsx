@@ -87,9 +87,11 @@ function App() {
     <Router>
       <div className="app-container">
         <Routes>
+          {/* Under Development - no header */}
+          <Route path="/" element={<UnderDevelopment />} />
+
           {/* Public Routes with Header */}
           <Route element={<PublicLayout user={user} onLogout={handleLogout} />}>
-            <Route path="/" element={<UnderDevelopment />} />
             <Route path="/home" element={<Home />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Auth />} />
