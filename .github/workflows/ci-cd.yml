@@ -138,10 +138,10 @@ jobs:
         run: |
           set -euo pipefail
           umask 077
-          KEY_FILE="$(mktemp)"
-          printf '%s\n' "${{ secrets.DEPLOY_SSH_KEY }}" > "$KEY_FILE"
-          ssh-keygen -lf "$KEY_FILE"
-          rm -f "$KEY_FILE"
+          f="$(mktemp)"
+          printf '%s\n' "${{ secrets.DEPLOY_SSH_KEY }}" > "$f"
+          ssh-keygen -lf "$f"
+          rm -f "$f"
 
       - name: Deploy to server
         uses: appleboy/ssh-action@v1.0.0
