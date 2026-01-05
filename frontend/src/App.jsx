@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import PublicLayout from './components/PublicLayout';
 import DashboardLayout from './components/DashboardLayout';
 import Home from './pages/Home';
+import UnderDevelopment from './pages/UnderDevelopment';
 import Login from './pages/Login';
 import Auth from './pages/Auth';
 import Dashboard from './pages/Dashboard';
@@ -88,7 +89,8 @@ function App() {
         <Routes>
           {/* Public Routes with Header */}
           <Route element={<PublicLayout user={user} onLogout={handleLogout} />}>
-            <Route path="/" element={<Home />} />
+            <Route path="/" element={<UnderDevelopment />} />
+            <Route path="/home" element={<Home />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Auth />} />
             <Route path="/about" element={<AboutPage />} />
