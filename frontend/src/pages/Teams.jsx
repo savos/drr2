@@ -124,6 +124,39 @@ function Teams() {
     }
   };
 
+  const handleSendTest = async (integration) => {
+    try {
+      setTestingConnection(integration.id);
+      if (!integration.team_id) {
+        // DM test (bot flow pending)
+        const resp = await authenticatedFetch('/api/teams/send-test-dm', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) });
+        if (resp.ok) {
+          setSuccessMessage('Test DM sent successfully.');
+        } else {
+          const data = await resp.json();
+          setError(data.detail || 'Unable to send test DM yet. Ensure DRR app is installed in Teams.');
+        }
+      } else {
+        // Channel test
+        const resp = await authenticatedFetch('/api/teams/send-test-channel', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ team_id: integration.team_id, channel_id: integration.channel_id }),
+        });
+        if (resp.ok) {
+          setSuccessMessage('Test message sent to channel.');
+        } else {
+          const data = await resp.json();
+          setError(data.detail || 'Failed to send test message to channel.');
+        }
+      }
+    } catch (e) {
+      setError('Failed to send test message.');
+    } finally {
+      setTestingConnection(null);
+    }
+  };
+
   const handleTeamModalClose = () => {
     setShowTeamModal(false);
   };
@@ -386,6 +419,13 @@ function Teams() {
                   </div>
 
                   <div className="integration-actions">
+                    <button
+                      className="btn btn-secondary btn-sm"
+                      onClick={() => handleSendTest(integration)}
+                      disabled={testingConnection === integration.id}
+                    >
+                      {testingConnection === integration.id ? 'Sending…' : 'Send test'}
+                    </button>
                     <button
                       className="btn btn-danger btn-sm"
                       onClick={() => handleDeleteIntegration(integration.id)}

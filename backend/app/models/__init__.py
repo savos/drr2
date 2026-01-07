@@ -8,5 +8,10 @@ from app.models.slack import Slack
 from app.models.telegram import Telegram, TelegramDMConnection
 from app.models.discord import Discord
 from app.models.teams import Teams
+from app.models.teams_conversation import TeamsConversation
 
-__all__ = ["Company", "User", "Pricing", "Case", "CaseLink", "Slack", "Telegram", "TelegramDMConnection", "Discord", "Teams"]
+__all__ = [
+    "Company", "User", "Pricing", "Case", "CaseLink",
+    "Slack", "Telegram", "TelegramDMConnection", "Discord",
+    "Teams", "TeamsConversation",
+]

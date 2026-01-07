@@ -29,6 +29,8 @@ class TeamsConsumer:
         self.graph_base = "https://graph.microsoft.com/v1.0"
         self.auth_base = f"https://login.microsoftonline.com/{self.tenant_id}/oauth2/v2.0"
         self.teams_app_id = os.getenv("TEAMS_APP_ID")  # Teams app (manifest) ID for installs/deep links
+        self.bot_app_id = os.getenv("BOT_APP_ID")
+        self.bot_app_password = os.getenv("BOT_APP_PASSWORD")
 
     def get_oauth_url(self, state: str) -> str:
         """Get Microsoft Teams OAuth2 authorization URL."""
@@ -36,6 +38,7 @@ class TeamsConsumer:
         scopes = " ".join([
             "openid", "profile", "email", "offline_access", "User.Read",
             "Team.ReadBasic.All", "Channel.ReadBasic.All", "TeamMember.Read.All",
+            "Group.Read.All",
             "TeamsAppInstallation.ReadWriteForUser", "TeamsAppInstallation.ReadWriteForTeam",
         ])
 
@@ -62,6 +65,7 @@ class TeamsConsumer:
                     "scope": " ".join([
                         "openid", "profile", "email", "offline_access", "User.Read",
                         "Team.ReadBasic.All", "Channel.ReadBasic.All", "TeamMember.Read.All",
+                        "Group.Read.All",
                         "TeamsAppInstallation.ReadWriteForUser", "TeamsAppInstallation.ReadWriteForTeam",
                     ])
                 }
@@ -103,6 +107,7 @@ class TeamsConsumer:
                     "scope": " ".join([
                         "openid", "profile", "email", "offline_access", "User.Read",
                         "Team.ReadBasic.All", "Channel.ReadBasic.All", "TeamMember.Read.All",
+                        "Group.Read.All",
                         "TeamsAppInstallation.ReadWriteForUser", "TeamsAppInstallation.ReadWriteForTeam",
                     ])
                 }
@@ -196,6 +201,39 @@ class TeamsConsumer:
             except httpx.HTTPError as e:
                 logger.error(f"HTTP error getting Teams channels: {e}")
                 raise TeamsAPIError(f"HTTP error: {str(e)}")
+
+    async def get_owned_teams(self, access_token: str) -> list[Dict[str, Any]]:
+        """Get Teams where the current user is an owner via ownedObjects (Graph groups)."""
+        async with httpx.AsyncClient() as client:
+            try:
+                # Fetch groups the user owns; then filter to ones provisioned as Teams
+                resp = await client.get(
+                    (
+                        f"{self.graph_base}/me/ownedObjects"
+                        f"?$filter=isof('microsoft.graph.group')&$select=id,displayName,resourceProvisioningOptions,description"
+                    ),
+                    headers={"Authorization": f"Bearer {access_token}"},
+                    timeout=10.0,
+                )
+                if resp.status_code != 200:
+                    logger.warning(
+                        f"Failed to get ownedObjects: {resp.status_code} {resp.text}"
+                    )
+                    return []
+                value = resp.json().get("value", [])
+                owned_teams = []
+                for obj in value:
+                    rpo = obj.get("resourceProvisioningOptions") or []
+                    if any(str(x).lower() == "team" for x in rpo):
+                        owned_teams.append({
+                            "id": obj.get("id"),
+                            "displayName": obj.get("displayName"),
+                            "description": obj.get("description"),
+                        })
+                return owned_teams
+            except httpx.HTTPError as e:
+                logger.error(f"HTTP error getting owned teams: {e}")
+                return []
 
     async def is_user_owner_of_team(self, access_token: str, team_id: str, user_id: str) -> bool:
         """Check if given user is an owner of the team by inspecting member roles."""
@@ -345,6 +383,60 @@ class TeamsConsumer:
         return (
             f"https://teams.microsoft.com/l/app/{self.teams_app_id}?installAppPackage=true&teamId={team_id}"
         )
+
+    async def _get_bot_oauth_token(self) -> Optional[str]:
+        """Acquire Bot Framework OAuth token using app credentials."""
+        if not (self.bot_app_id and self.bot_app_password):
+            logger.warning("Bot credentials not configured; cannot send bot DMs")
+            return None
+        token_url = "https://login.microsoftonline.com/botframework.com/oauth2/v2.0/token"
+        data = {
+            "grant_type": "client_credentials",
+            "client_id": self.bot_app_id,
+            "client_secret": self.bot_app_password,
+            "scope": "https://api.botframework.com/.default",
+        }
+        async with httpx.AsyncClient() as client:
+            try:
+                resp = await client.post(token_url, data=data, timeout=10.0)
+                if resp.status_code != 200:
+                    logger.error(f"Bot token exchange failed: {resp.status_code} {resp.text}")
+                    return None
+                return resp.json().get("access_token")
+            except httpx.HTTPError as e:
+                logger.error(f"HTTP error getting bot token: {e}")
+                return None
+
+    async def send_bot_dm(self, service_url: str, conversation_id: str, text: str) -> bool:
+        """Send a proactive DM via Bot Framework to a conversation id."""
+        token = await self._get_bot_oauth_token()
+        if not token:
+            return False
+        # Ensure service_url ends with '/'
+        base = service_url if service_url.endswith('/') else service_url + '/'
+        url = f"{base}v3/conversations/{conversation_id}/activities"
+        payload = {
+            "type": "message",
+            "text": text,
+        }
+        async with httpx.AsyncClient() as client:
+            try:
+                resp = await client.post(
+                    url,
+                    json=payload,
+                    headers={
+                        "Authorization": f"Bearer {token}",
+                        "Content-Type": "application/json",
+                    },
+                    timeout=10.0,
+                )
+                if resp.status_code not in (200, 201, 202):
+                    logger.error(f"Failed to send bot DM: {resp.status_code} {resp.text}")
+                    return False
+                return True
+            except httpx.HTTPError as e:
+                logger.error(f"HTTP error sending bot DM: {e}")
+                return False
 
     async def send_channel_message(
         self,

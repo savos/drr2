@@ -16,6 +16,8 @@ from app.schemas.teams import TeamsRead, ChannelSelection, AddChannelsRequest
 from app.utils.security import get_current_user
 from app.consumers.teams import TeamsConsumer, TeamsAPIError
 from app.services.teams import TeamsService
+from app.services.teams_conversation import TeamsConversationService
+from app.utils.botframework_jwt import verify_bot_jwt
 
 logger = logging.getLogger(__name__)
 
@@ -71,6 +73,16 @@ class InstallResult(BaseModel):
     teams: Dict[str, Dict[str, Any]] = {}
 
 
+class SendChannelTestRequest(BaseModel):
+    team_id: str
+    channel_id: str
+    message: Optional[str] = None
+
+
+class SendDMTestRequest(BaseModel):
+    message: Optional[str] = None
+
+
 @router.get("/oauth/url", response_model=OAuthUrlResponse)
 async def get_oauth_url(
     current_user: User = Depends(get_current_user)
@@ -100,6 +112,12 @@ async def get_oauth_url(
             oauth_url=oauth_url,
             state=state
         )
+    except Exception as e:
+        logger.error(f"Error generating OAuth URL: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to generate OAuth URL"
+        )
 
 
 @router.get("/status", response_model=TeamsStatusResponse)
@@ -119,13 +137,6 @@ async def get_status(
     )
     deeplink = teams_consumer.deep_link_add_personal()
     return TeamsStatusResponse(personal_installed=installed, personal_deeplink=deeplink)
-
-    except Exception as e:
-        logger.error(f"Error generating OAuth URL: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to generate OAuth URL"
-        )
 
 
 @router.get("/oauth/callback")
@@ -399,22 +410,31 @@ async def get_owned_teams(
         if integ.team_id and integ.channel_id
     }
 
-    try:
-        user_teams = await teams_consumer.get_user_teams(dm_integration.access_token)
-    except TeamsAPIError:
-        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Failed to fetch teams from Microsoft Teams")
+    # Prefer Graph ownedObjects for owned teams
+    user_owned = await teams_consumer.get_owned_teams(dm_integration.access_token)
+
+    # Fallback to joinedTeams + owner role check if ownedObjects returned nothing
+    teams_source = user_owned
+    owner_checked = True
+    if not teams_source:
+        try:
+            teams_source = await teams_consumer.get_user_teams(dm_integration.access_token)
+            owner_checked = False
+        except TeamsAPIError:
+            raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Failed to fetch teams from Microsoft Teams")
 
     available_teams: List[TeamInfo] = []
-    for team in user_teams:
+    for team in teams_source:
         team_id = team.get("id")
         team_name = team.get("displayName")
         if not team_id or not team_name:
             continue
-        is_owner = await teams_consumer.is_user_owner_of_team(
-            dm_integration.access_token, team_id, dm_integration.teams_user_id
-        )
-        if not is_owner:
-            continue
+        if not owner_checked:
+            is_owner = await teams_consumer.is_user_owner_of_team(
+                dm_integration.access_token, team_id, dm_integration.teams_user_id
+            )
+            if not is_owner:
+                continue
         try:
             channels = await teams_consumer.get_team_channels(dm_integration.access_token, team_id)
         except TeamsAPIError:
@@ -495,6 +515,74 @@ async def install_app(
         results.teams[team_id] = team_res
 
     return results
+
+
+@router.post("/send-test-channel")
+async def send_test_channel(
+    payload: SendChannelTestRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Send a test message to a specific team channel using Graph (appears as the user).
+    This is a connectivity test until bot messaging is fully wired.
+    """
+    dm_integration = await teams_service.get_first_by_user(db, current_user.id)
+    if not dm_integration or not dm_integration.access_token:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No Teams connection found. Connect first.")
+
+    message = payload.message or "DRR: This is a test message to your Teams channel."
+    try:
+        await teams_consumer.send_channel_message(
+            dm_integration.access_token,
+            payload.team_id,
+            payload.channel_id,
+            message,
+        )
+        return {"ok": True}
+    except TeamsAPIError as e:
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(e))
+
+
+@router.post("/send-test-dm")
+async def send_test_dm(
+    payload: SendDMTestRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Send a test DM via Bot Framework if a conversation reference is stored.
+    Steps for the user if not ready:
+      1) Install DRR app in Teams (deep link),
+      2) Send a message to the DRR app (to create conversation),
+      3) Retry.
+    """
+    # Find base integration
+    dm_integration = await teams_service.get_first_by_user(db, current_user.id)
+    if not dm_integration:
+        raise HTTPException(status_code=404, detail="No Teams connection found. Connect first.")
+
+    # Look up stored personal conversation
+    conv_row = await TeamsConversationService.get_personal_by_user(db, current_user.id)
+    if not conv_row or not conv_row.conversation_id or not conv_row.service_url:
+        deeplink = teams_consumer.deep_link_add_personal()
+        return JSONResponse(
+            status_code=409,
+            content={
+                "detail": "Open the DRR app in Teams and send any message so we can capture your DM conversation.",
+                "deeplink": deeplink,
+            },
+        )
+
+    text = payload.message or "DRR: This is a test DM from your DRR bot."
+    ok = await teams_consumer.send_bot_dm(
+        service_url=conv_row.service_url,
+        conversation_id=conv_row.conversation_id,
+        text=text,
+    )
+    if not ok:
+        raise HTTPException(status_code=502, detail="Failed to send DM. Check bot credentials and app installation.")
+    return {"ok": True}
 
 
 @router.post("/add-channels", response_model=AddChannelsResponse)
@@ -626,10 +714,52 @@ async def delete_integration(
 
 
 @router.post("/bot")
-async def bot_webhook(request: Request):
+async def bot_webhook(request: Request, db: AsyncSession = Depends(get_db)):
     """
-    Placeholder endpoint for Teams Bot Framework webhook.
-    To implement: wire up Bot Framework Adapter, handle conversationUpdate
-    to capture conversation references for personal and team scope.
+    Minimal Teams bot webhook to capture conversation references.
+    Note: In dev, this does not validate JWT signatures. Use only in dev.
+    Stores a DM conversation ref in Teams table for the matched user.
     """
-    return JSONResponse({"detail": "Teams bot webhook not implemented"}, status_code=501)
+    try:
+        body = await request.json()
+    except Exception:
+        return JSONResponse({"detail": "Invalid JSON"}, status_code=400)
+
+    activity_type = body.get("type")
+    service_url = body.get("serviceUrl")
+    conversation = (body.get("conversation") or {})
+    conversation_id = conversation.get("id")
+    from_obj = body.get("from") or {}
+    # Prefer aadObjectId if provided
+    aad_id = from_obj.get("aadObjectId") or from_obj.get("id")
+
+    if not (service_url and conversation_id and aad_id):
+        return JSONResponse({"detail": "Missing fields in activity"}, status_code=200)
+
+    # Validate Bot Framework token if app ID configured
+    auth_header = request.headers.get("Authorization")
+    bot_app_id = os.getenv("BOT_APP_ID") or os.getenv("MICROSOFT_APP_ID")
+    if bot_app_id:
+        try:
+            await verify_bot_jwt(auth_header, audience=bot_app_id, expected_service_url=service_url)
+        except Exception as e:
+            logger.warning(f"Bot JWT validation failed: {e}")
+            return JSONResponse({"detail": "Unauthorized"}, status_code=401)
+
+    # Find any integration row matching this Teams user id
+    integ = await teams_service.get_any_by_teams_user_id(db, aad_id)
+    if not integ:
+        # Could not match to an app user yet; ignore silently
+        return JSONResponse({"detail": "No matching user for Teams activity"}, status_code=200)
+
+    # Store a DM conversation reference in dedicated table
+    saved = await TeamsConversationService.upsert_personal(
+        db=db,
+        user_id=integ.user_id,
+        service_url=service_url,
+        conversation_id=conversation_id,
+    )
+    if not saved:
+        logger.error("Failed to persist DM conversation ref")
+
+    return JSONResponse({"detail": "ok"}, status_code=200)

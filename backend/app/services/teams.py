@@ -174,6 +174,24 @@ class TeamsService:
             return None
 
     @staticmethod
+    async def get_any_by_teams_user_id(
+        db: AsyncSession,
+        teams_user_id: str
+    ) -> Optional[Teams]:
+        """Get any Teams integration row by Teams user id (to map incoming bot events)."""
+        try:
+            result = await db.execute(
+                select(Teams).where(
+                    Teams.teams_user_id == teams_user_id,
+                    Teams.deleted_at.is_(None)
+                ).order_by(Teams.created_at.desc())
+            )
+            return result.scalar_one_or_none()
+        except SQLAlchemyError as e:
+            logger.error(f"Database error getting by teams_user_id: {e}")
+            return None
+
+    @staticmethod
     async def create_channel_integration(
         db: AsyncSession,
         base_integration: Teams,
