@@ -23,7 +23,7 @@ function TeamsSelectionModal({ show, onClose, onSubmit }) {
       setLoading(true);
       setError(null);
 
-      const response = await authenticatedFetch('/api/teams/available-teams');
+      const response = await authenticatedFetch('/api/teams/owned-teams');
 
       if (response.ok) {
         const data = await response.json();
@@ -103,6 +103,22 @@ function TeamsSelectionModal({ show, onClose, onSubmit }) {
 
       const channelsArray = Array.from(selectedChannels.values());
       console.log('[TeamsModal] Submitting channels:', channelsArray);
+
+      // Install app to selected teams (best effort)
+      const teamIds = Array.from(new Set(channelsArray.map(c => c.team_id)));
+      try {
+        const installResp = await authenticatedFetch('/api/teams/install', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ include_personal: false, team_ids: teamIds }),
+        });
+        if (installResp.ok) {
+          const installData = await installResp.json();
+          console.log('[TeamsModal] Install results:', installData);
+        }
+      } catch (e) {
+        console.warn('[TeamsModal] Install attempt failed, will continue to save channels');
+      }
 
       const response = await authenticatedFetch('/api/teams/add-channels', {
         method: 'POST',

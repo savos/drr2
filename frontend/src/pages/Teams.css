@@ -403,6 +403,60 @@
   }
 }
 
+/* Account Warning Card */
+.account-warning-card {
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  border: 1px solid #f59e0b;
+  border-radius: 12px;
+  padding: 1.25rem 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.account-warning-card .warning-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.account-warning-card .warning-header h3 {
+  margin: 0;
+  color: #92400e;
+  font-size: 1.1rem;
+}
+
+.account-warning-card .warning-icon {
+  font-size: 1.25rem;
+}
+
+.account-warning-card p {
+  margin: 0;
+  color: #78350f;
+  line-height: 1.5;
+}
+
+.account-warning-card a {
+  color: #1d4ed8;
+  text-decoration: underline;
+}
+
+.account-warning-card a:hover {
+  color: #1e40af;
+}
+
+.account-warning-card details summary:hover {
+  text-decoration: underline;
+}
+
+.account-warning-card ul {
+  list-style: disc;
+}
+
+.account-warning-card li {
+  color: #78350f;
+  margin-bottom: 0.25rem;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
   .teams-page {

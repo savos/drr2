@@ -3,8 +3,9 @@ import os
 import uuid
 import logging
 from typing import Optional, List
-from fastapi import APIRouter, Depends, HTTPException, status, Query
-from fastapi.responses import RedirectResponse
+from typing import Dict, Any
+from fastapi import APIRouter, Depends, HTTPException, status, Query, Request
+from fastapi.responses import RedirectResponse, JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel
 
@@ -52,6 +53,24 @@ class AddChannelsResponse(BaseModel):
     integrations: List[TeamsRead]
 
 
+class TeamsStatusResponse(BaseModel):
+    """Status of Teams app installation for the user."""
+    personal_installed: bool
+    personal_deeplink: Optional[str] = None
+
+
+class InstallTargets(BaseModel):
+    """Targets to install the Teams app to."""
+    include_personal: bool = True
+    team_ids: List[str] = []
+
+
+class InstallResult(BaseModel):
+    """Result of installation attempts."""
+    personal: Optional[Dict[str, Any]] = None
+    teams: Dict[str, Dict[str, Any]] = {}
+
+
 @router.get("/oauth/url", response_model=OAuthUrlResponse)
 async def get_oauth_url(
     current_user: User = Depends(get_current_user)
@@ -81,6 +100,25 @@ async def get_oauth_url(
             oauth_url=oauth_url,
             state=state
         )
+
+
+@router.get("/status", response_model=TeamsStatusResponse)
+async def get_status(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Get personal-scope install status and deep link for adding the app.
+    """
+    dm_integration = await teams_service.get_first_by_user(db, current_user.id)
+    if not dm_integration or not dm_integration.access_token or not dm_integration.teams_user_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No Teams connection found. Connect first.")
+
+    installed = await teams_consumer.is_app_installed_for_user(
+        dm_integration.access_token, dm_integration.teams_user_id
+    )
+    deeplink = teams_consumer.deep_link_add_personal()
+    return TeamsStatusResponse(personal_installed=installed, personal_deeplink=deeplink)
 
     except Exception as e:
         logger.error(f"Error generating OAuth URL: {e}")
@@ -341,6 +379,124 @@ async def get_available_teams(
         )
 
 
+@router.get("/owned-teams", response_model=AvailableTeamsResponse)
+async def get_owned_teams(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Get only teams where current user is an owner, with their channels,
+    excluding already integrated channels.
+    """
+    dm_integration = await teams_service.get_first_by_user(db, current_user.id)
+    if not dm_integration or not dm_integration.access_token or not dm_integration.teams_user_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No Teams connection found. Connect first.")
+
+    existing_integrations = await teams_service.get_by_user(db, current_user.id)
+    existing_channel_keys = {
+        f"{integ.team_id}:{integ.channel_id}"
+        for integ in existing_integrations
+        if integ.team_id and integ.channel_id
+    }
+
+    try:
+        user_teams = await teams_consumer.get_user_teams(dm_integration.access_token)
+    except TeamsAPIError:
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Failed to fetch teams from Microsoft Teams")
+
+    available_teams: List[TeamInfo] = []
+    for team in user_teams:
+        team_id = team.get("id")
+        team_name = team.get("displayName")
+        if not team_id or not team_name:
+            continue
+        is_owner = await teams_consumer.is_user_owner_of_team(
+            dm_integration.access_token, team_id, dm_integration.teams_user_id
+        )
+        if not is_owner:
+            continue
+        try:
+            channels = await teams_consumer.get_team_channels(dm_integration.access_token, team_id)
+        except TeamsAPIError:
+            continue
+        available_channels = []
+        for ch in channels:
+            cid = ch.get("id")
+            cname = ch.get("displayName")
+            ctype = ch.get("membershipType", "standard")
+            if not cid or not cname:
+                continue
+            key = f"{team_id}:{cid}"
+            if key in existing_channel_keys:
+                continue
+            available_channels.append({"id": cid, "name": cname, "type": ctype})
+        if available_channels:
+            available_teams.append(
+                TeamInfo(id=team_id, name=team_name, description=team.get("description"), channels=available_channels)
+            )
+
+    return AvailableTeamsResponse(teams=available_teams)
+
+
+@router.post("/install", response_model=InstallResult)
+async def install_app(
+    targets: InstallTargets,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Try to install the Teams app for the user (personal) and selected team IDs.
+    Returns per-target results and deep links for fallback if needed.
+    """
+    dm_integration = await teams_service.get_first_by_user(db, current_user.id)
+    if not dm_integration or not dm_integration.access_token or not dm_integration.teams_user_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No Teams connection found. Connect first.")
+
+    results: InstallResult = InstallResult(personal=None, teams={})
+
+    if targets.include_personal:
+        installed = await teams_consumer.is_app_installed_for_user(
+            dm_integration.access_token, dm_integration.teams_user_id
+        )
+        if installed:
+            results.personal = {"installed": True}
+        else:
+            ok = await teams_consumer.install_app_for_user(
+                dm_integration.access_token, dm_integration.teams_user_id
+            )
+            if ok:
+                results.personal = {"installed": True}
+            else:
+                results.personal = {
+                    "installed": False,
+                    "deeplink": teams_consumer.deep_link_add_personal(),
+                    "hint": "Click the deep link to add the app to your Teams."
+                }
+
+    for team_id in targets.team_ids:
+        team_res: Dict[str, Any] = {"teamId": team_id}
+        already = await teams_consumer.is_app_installed_for_team(
+            dm_integration.access_token, team_id
+        )
+        if already:
+            team_res.update({"installed": True})
+        else:
+            ok = await teams_consumer.install_app_for_team(
+                dm_integration.access_token, team_id
+            )
+            if ok:
+                team_res.update({"installed": True})
+            else:
+                team_res.update({
+                    "installed": False,
+                    "deeplink": teams_consumer.deep_link_add_to_team(team_id),
+                    "hint": "Use the deep link to add the app to this team. You may need to be a team owner."
+                })
+        results.teams[team_id] = team_res
+
+    return results
+
+
 @router.post("/add-channels", response_model=AddChannelsResponse)
 async def add_selected_channels(
     request: AddChannelsRequest,
@@ -467,3 +623,13 @@ async def delete_integration(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to delete integration"
         )
+
+
+@router.post("/bot")
+async def bot_webhook(request: Request):
+    """
+    Placeholder endpoint for Teams Bot Framework webhook.
+    To implement: wire up Bot Framework Adapter, handle conversationUpdate
+    to capture conversation references for personal and team scope.
+    """
+    return JSONResponse({"detail": "Teams bot webhook not implemented"}, status_code=501)

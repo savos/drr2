@@ -13,6 +13,7 @@ function Teams() {
   const [successMessage, setSuccessMessage] = useState(null);
   const [startLink, setStartLink] = useState('');
   const [showTeamModal, setShowTeamModal] = useState(false);
+  const [teamsStatus, setTeamsStatus] = useState({ personal_installed: false, personal_deeplink: '' });
 
   // Check for OAuth callback
   useEffect(() => {
@@ -73,6 +74,18 @@ function Teams() {
   useEffect(() => {
     loadIntegrations();
     loadStartLink();
+    // Load Teams app install status (personal scope)
+    (async () => {
+      try {
+        const resp = await authenticatedFetch('/api/teams/status');
+        if (resp.ok) {
+          const data = await resp.json();
+          setTeamsStatus(data);
+        }
+      } catch (e) {
+        // ignore
+      }
+    })();
 
     // Listen for visibility change (when user returns from Teams)
     const handleVisibilityChange = () => {
@@ -167,6 +180,42 @@ function Teams() {
         </div>
       )}
 
+      {/* Account Requirement Warning */}
+      <div className="account-warning-card">
+        <div className="warning-header">
+          <span className="warning-icon">⚠️</span>
+          <h3>Microsoft 365 Work/School Account Required</h3>
+        </div>
+        <p>
+          Teams integration <strong>only works with organizational Microsoft 365 accounts</strong>
+          (work or school accounts provided by your organization).
+        </p>
+        <p style={{ marginTop: '0.5rem', color: '#6b7280' }}>
+          Personal Microsoft accounts (Outlook.com, Hotmail, Gmail-linked) are <strong>not supported</strong>
+          due to Microsoft Graph API limitations.
+        </p>
+        <details style={{ marginTop: '1rem' }}>
+          <summary style={{ cursor: 'pointer', color: '#2563eb', fontWeight: '500' }}>
+            Don't have a work account? See alternatives →
+          </summary>
+          <div style={{ marginTop: '0.75rem', paddingLeft: '1rem', borderLeft: '3px solid #e5e7eb' }}>
+            <p><strong>Alternative notification channels that support personal accounts:</strong></p>
+            <ul style={{ marginTop: '0.5rem', marginLeft: '1rem' }}>
+              <li><a href="/dashboard/channels/telegram">Telegram</a> - Works with any account</li>
+              <li><a href="/dashboard/channels/discord">Discord</a> - Works with any account</li>
+              <li><a href="/dashboard/channels/slack">Slack</a> - Works with any workspace</li>
+              <li><a href="/dashboard/channels/email">Email</a> - Works with any email address</li>
+            </ul>
+            <p style={{ marginTop: '0.75rem' }}>
+              <strong>For testing:</strong> You can get a free Microsoft 365 developer account at{' '}
+              <a href="https://developer.microsoft.com/en-us/microsoft-365/dev-program" target="_blank" rel="noopener noreferrer">
+                Microsoft 365 Developer Program
+              </a>
+            </p>
+          </div>
+        </details>
+      </div>
+
       <div className="setup-section">
         <h2>How to Set Up Microsoft Teams Integration</h2>
 
@@ -254,6 +303,22 @@ function Teams() {
             <span className="teams-icon">📧</span>
             Connect Microsoft Teams
           </a>
+          {!teamsStatus.personal_installed && teamsStatus.personal_deeplink && (
+            <a
+              href={teamsStatus.personal_deeplink}
+              className="btn btn-secondary btn-large"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ marginLeft: '1rem' }}
+            >
+              ➕ Add DRR to Teams (DMs)
+            </a>
+          )}
+          {teamsStatus.personal_installed && (
+            <span style={{ marginLeft: '1rem', color: '#059669', fontWeight: 500 }}>
+              ✅ DRR app installed for DMs
+            </span>
+          )}
         </div>
       </div>
 

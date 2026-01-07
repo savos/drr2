@@ -232,29 +232,44 @@ function Telegram() {
         </div>
 
         <div className="instructions-card" style={{ marginTop: '1.5rem' }}>
-          <h3 style={{ marginBottom: '1rem', color: '#2563eb' }}>👥 Group Setup (Optional)</h3>
+          <h3 style={{ marginBottom: '1rem', color: '#2563eb' }}>👥 Group/Channel Setup (Optional)</h3>
+
+          <div style={{ padding: '0.75rem 1rem', backgroundColor: '#fef3c7', borderRadius: '8px', marginBottom: '1rem', border: '1px solid #fbbf24' }}>
+            <p style={{ margin: 0, color: '#92400e', fontSize: '0.9rem' }}>
+              <strong>Important:</strong> You must first connect via Direct Message (steps above) before adding the bot to a group or channel.
+            </p>
+          </div>
 
           <div className="instruction-step">
             <div className="step-number">1</div>
             <div className="step-content">
-              <h3>Add Bot to Your Group</h3>
-              <p>In Telegram, go to your group → Group Info → Add Members → Search for {botName || 'the DRR bot'} and add it.</p>
+              <h3>Connect via DM First</h3>
+              <p>Complete the Direct Message setup above. This links your Telegram account to DRR.</p>
             </div>
           </div>
 
           <div className="instruction-step">
             <div className="step-number">2</div>
             <div className="step-content">
-              <h3>Grant Admin Permissions (Recommended)</h3>
-              <p>Give the bot admin permissions so it can send messages reliably. The connection will appear below as a Group card.</p>
+              <h3>Add Bot to Your Group or Channel</h3>
+              <p><strong>For Groups:</strong> Open your group → tap group name → Add Members → search for <strong>{botName || 'the DRR bot'}</strong> → Add</p>
+              <p style={{ marginTop: '0.5rem' }}><strong>For Channels:</strong> Open your channel → tap channel name → Administrators → Add Admin → search for <strong>{botName || 'the DRR bot'}</strong> → grant "Post Messages" permission</p>
             </div>
           </div>
 
           <div className="instruction-step">
             <div className="step-number">3</div>
             <div className="step-content">
-              <h3>Receive Group Notifications</h3>
-              <p>All group members will see domain and SSL expiration notifications in the group chat.</p>
+              <h3>Automatic Connection</h3>
+              <p>The bot will automatically detect that you added it and link the group/channel to your DRR account. The connection will appear below.</p>
+            </div>
+          </div>
+
+          <div className="instruction-step">
+            <div className="step-number">4</div>
+            <div className="step-content">
+              <h3>Receive Notifications</h3>
+              <p>All group/channel members will see domain and SSL expiration notifications. Grant the bot admin permissions for reliable message delivery.</p>
             </div>
           </div>
         </div>
