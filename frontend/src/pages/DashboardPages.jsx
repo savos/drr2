@@ -63,6 +63,35 @@ export function TelegramChannelPage() {
   return <Telegram />;
 }
 
+export function GoogleChatChannelPage() {
+  return <StubPage title="Google Chat Integration" description="Send domain and SSL expiration notifications to Google Chat spaces." />;
+}
+
+export function ZoomChannelPage() {
+  return <StubPage title="Zoom Team Chat Integration" description="Receive domain reminders directly in Zoom Team Chat." />;
+}
+
+export function WebexChannelPage() {
+  return <StubPage title="Cisco Webex Integration" description="Get notified about domain expirations in Cisco Webex spaces." />;
+}
+
+export function MattermostChannelPage() {
+  return <StubPage title="Mattermost Integration" description="Connect with your self-hosted Mattermost for domain notifications." />;
+}
+
+// Incident Management Pages
+export function PagerDutyPage() {
+  return <StubPage title="PagerDuty Integration" description="Create incidents in PagerDuty when domains or SSL certificates are about to expire." />;
+}
+
+export function BetterStackPage() {
+  return <StubPage title="BetterStack Integration" description="Send domain expiration alerts to BetterStack for incident management." />;
+}
+
+export function GrafanaOnCallPage() {
+  return <StubPage title="Grafana OnCall Integration" description="Route domain expiration alerts through Grafana OnCall." />;
+}
+
 // Automation Pages
 export function ZapierPage() {
   return <StubPage title="Zapier Integration" description="Connect with 5000+ apps using Zapier automation." />;
@@ -74,6 +103,14 @@ export function MakePage() {
 
 export function N8nPage() {
   return <StubPage title="n8n Integration" description="Self-hosted workflow automation with n8n." />;
+}
+
+export function PowerAutomatePage() {
+  return <StubPage title="Power Automate Integration" description="Connect with Microsoft Power Automate for workflow automation." />;
+}
+
+export function PipedreamPage() {
+  return <StubPage title="Pipedream Integration" description="Build workflows with Pipedream's developer-friendly automation platform." />;
 }
 
 // Reminder Pages

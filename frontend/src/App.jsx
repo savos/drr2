@@ -25,9 +25,18 @@ import {
   TeamsChannelPage,
   DiscordChannelPage,
   TelegramChannelPage,
+  GoogleChatChannelPage,
+  ZoomChannelPage,
+  WebexChannelPage,
+  MattermostChannelPage,
+  PagerDutyPage,
+  BetterStackPage,
+  GrafanaOnCallPage,
   ZapierPage,
   MakePage,
   N8nPage,
+  PowerAutomatePage,
+  PipedreamPage,
   SetRemindersPage,
   RemindersHistoryPage,
   AboutPage,
@@ -148,11 +157,22 @@ function App() {
             <Route path="channels/teams" element={<TeamsChannelPage />} />
             <Route path="channels/discord" element={<DiscordChannelPage />} />
             <Route path="channels/telegram" element={<TelegramChannelPage />} />
+            <Route path="channels/google-chat" element={<GoogleChatChannelPage />} />
+            <Route path="channels/zoom" element={<ZoomChannelPage />} />
+            <Route path="channels/webex" element={<WebexChannelPage />} />
+            <Route path="channels/mattermost" element={<MattermostChannelPage />} />
+
+            {/* Incident Management Routes */}
+            <Route path="incident/pagerduty" element={<PagerDutyPage />} />
+            <Route path="incident/betterstack" element={<BetterStackPage />} />
+            <Route path="incident/grafana-oncall" element={<GrafanaOnCallPage />} />
 
             {/* Automation Routes */}
+            <Route path="automation/n8n" element={<N8nPage />} />
+            <Route path="automation/power-automate" element={<PowerAutomatePage />} />
             <Route path="automation/zapier" element={<ZapierPage />} />
             <Route path="automation/make" element={<MakePage />} />
-            <Route path="automation/n8n" element={<N8nPage />} />
+            <Route path="automation/pipedream" element={<PipedreamPage />} />
 
             {/* Reminder Routes */}
             <Route path="set-reminders" element={<SetRemindersPage />} />

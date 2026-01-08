@@ -52,14 +52,28 @@ function Sidebar() {
         { name: 'MS Teams', path: '/dashboard/channels/teams' },
         { name: 'Discord', path: '/dashboard/channels/discord' },
         { name: 'Telegram', path: '/dashboard/channels/telegram' },
+        { name: 'Google Chat', path: '/dashboard/channels/google-chat' },
+        { name: 'Zoom Team Chat', path: '/dashboard/channels/zoom' },
+        { name: 'Cisco Webex', path: '/dashboard/channels/webex' },
+        { name: 'Mattermost', path: '/dashboard/channels/mattermost' },
+      ]
+    },
+    {
+      title: 'Incident Management',
+      links: [
+        { name: 'PagerDuty', path: '/dashboard/incident/pagerduty' },
+        { name: 'BetterStack', path: '/dashboard/incident/betterstack' },
+        { name: 'Grafana OnCall', path: '/dashboard/incident/grafana-oncall' },
       ]
     },
     {
       title: 'Automation Tools',
       links: [
+        { name: 'n8n', path: '/dashboard/automation/n8n' },
+        { name: 'Power Automate', path: '/dashboard/automation/power-automate' },
         { name: 'Zapier', path: '/dashboard/automation/zapier' },
         { name: 'Make', path: '/dashboard/automation/make' },
-        { name: 'n8n', path: '/dashboard/automation/n8n' },
+        { name: 'Pipedream', path: '/dashboard/automation/pipedream' },
       ]
     },
     {
