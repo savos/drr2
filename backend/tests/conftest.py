@@ -8,6 +8,19 @@ from typing import AsyncGenerator
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 
+# Ensure .env is loaded and skip app DB init in tests before importing app
+try:
+    from dotenv import load_dotenv  # type: ignore
+    from pathlib import Path
+    # repo root: tests -> backend -> repo
+    load_dotenv(Path(__file__).resolve().parents[2] / ".env")
+except Exception:
+    # If python-dotenv is unavailable, app will still try to load .env
+    pass
+
+# Ensure app skips DB initialization/migrations under tests
+os.environ.setdefault("SKIP_DB_INIT", "1")
+
 from app.main import app
 from app.config.database import Base
 from app.database.database import get_db

@@ -18,7 +18,18 @@ from app.database.database import (
 # Load environment variables before importing routers that may read env at import time
 ENV_FILE = load_project_env()
 
-from app.routers import health, auth, users, slack, telegram, discord, teams, cases
+"""
+Import routers explicitly as submodules to avoid issues with package
+fromlist imports in certain environments/packagers.
+"""
+import app.routers.health as health
+import app.routers.auth as auth
+import app.routers.users as users
+import app.routers.slack as slack
+import app.routers.telegram as telegram
+import app.routers.discord as discord
+import app.routers.teams as teams
+import app.routers.cases as cases
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -31,6 +42,13 @@ async def lifespan(app: FastAPI):
     logger.info("Starting application...")
 
     try:
+        # Allow tests/CI to skip DB initialization and migrations entirely
+        if os.getenv("SKIP_DB_INIT") == "1":
+            logger.info("SKIP_DB_INIT=1 set; skipping DB init/migrations")
+            yield
+            logger.info("Shutting down application")
+            return
+
         # Ensure database exists
         logger.info("Ensuring database exists...")
         await ensure_database_exists()
