@@ -31,6 +31,7 @@ class TeamsConsumer:
         self.teams_app_id = os.getenv("TEAMS_APP_ID")  # Teams app (manifest) ID for installs/deep links
         self.bot_app_id = os.getenv("BOT_APP_ID")
         self.bot_app_password = os.getenv("BOT_APP_PASSWORD")
+        self.channel_service = os.getenv("BOT_CHANNEL_SERVICE", "public").lower()
 
     def get_oauth_url(self, state: str) -> str:
         """Get Microsoft Teams OAuth2 authorization URL."""
@@ -384,17 +385,34 @@ class TeamsConsumer:
             f"https://teams.microsoft.com/l/app/{self.teams_app_id}?installAppPackage=true&teamId={team_id}"
         )
 
+    def _token_config(self):
+        if self.channel_service == "usgov":
+            return {
+                "token_url": "https://login.microsoftonline.us/botframework.us/oauth2/v2.0/token",
+                "scope": "https://api.botframework.us/.default",
+            }
+        if self.channel_service == "china":
+            return {
+                "token_url": "https://login.partner.microsoftonline.cn/botframework.azure.cn/oauth2/v2.0/token",
+                "scope": "https://api.botframework.azure.cn/.default",
+            }
+        return {
+            "token_url": "https://login.microsoftonline.com/botframework.com/oauth2/v2.0/token",
+            "scope": "https://api.botframework.com/.default",
+        }
+
     async def _get_bot_oauth_token(self) -> Optional[str]:
         """Acquire Bot Framework OAuth token using app credentials."""
         if not (self.bot_app_id and self.bot_app_password):
             logger.warning("Bot credentials not configured; cannot send bot DMs")
             return None
-        token_url = "https://login.microsoftonline.com/botframework.com/oauth2/v2.0/token"
+        cfg = self._token_config()
+        token_url = cfg["token_url"]
         data = {
             "grant_type": "client_credentials",
             "client_id": self.bot_app_id,
             "client_secret": self.bot_app_password,
-            "scope": "https://api.botframework.com/.default",
+            "scope": cfg["scope"],
         }
         async with httpx.AsyncClient() as client:
             try:

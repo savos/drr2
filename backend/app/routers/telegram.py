@@ -722,3 +722,28 @@ async def get_start_link(
         "start_link": start_link,
         "bot_name": telegram_consumer.bot_name
     }
+def _verify_telegram_secret(request: Request, expected: str) -> bool:
+    token = request.headers.get("X-Telegram-Bot-Api-Secret-Token", "")
+    return bool(expected) and token == expected
+
+
+@router.post("/webhook")
+async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db)):
+    """
+    Telegram webhook endpoint with secret token verification.
+    Configure your bot's webhook with the same secret token.
+    """
+    secret = os.getenv("TELEGRAM_WEBHOOK_SECRET", "")
+    if not secret:
+        return JSONResponse(status_code=500, content={"error": "TELEGRAM_WEBHOOK_SECRET not configured"})
+    if not _verify_telegram_secret(request, secret):
+        return JSONResponse(status_code=401, content={"error": "Invalid secret"})
+
+    try:
+        update = await request.json()
+    except Exception:
+        update = {}
+
+    # Minimal scaffold: acknowledge; extend to handle messages/joins if needed
+    logger.info("Telegram webhook received update type=%s", update.get("message", {}).get("chat", {}).get("type") if update else None)
+    return JSONResponse(content={"ok": True})

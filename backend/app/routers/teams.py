@@ -732,6 +732,12 @@ async def bot_webhook(request: Request, db: AsyncSession = Depends(get_db)):
     from_obj = body.get("from") or {}
     # Prefer aadObjectId if provided
     aad_id = from_obj.get("aadObjectId") or from_obj.get("id")
+    channel_data = body.get("channelData") or {}
+    conv_type = (conversation.get("conversationType") or "").lower()
+    team_info = (channel_data.get("team") or {})
+    channel_info = (channel_data.get("channel") or {})
+    team_id = team_info.get("id")
+    channel_id = channel_info.get("id")
 
     if not (service_url and conversation_id and aad_id):
         return JSONResponse({"detail": "Missing fields in activity"}, status_code=200)
@@ -739,9 +745,15 @@ async def bot_webhook(request: Request, db: AsyncSession = Depends(get_db)):
     # Validate Bot Framework token if app ID configured
     auth_header = request.headers.get("Authorization")
     bot_app_id = os.getenv("BOT_APP_ID") or os.getenv("MICROSOFT_APP_ID")
+    channel_service = os.getenv("BOT_CHANNEL_SERVICE", "public").lower()
     if bot_app_id:
         try:
-            await verify_bot_jwt(auth_header, audience=bot_app_id, expected_service_url=service_url)
+            await verify_bot_jwt(
+                auth_header,
+                audience=bot_app_id,
+                expected_service_url=service_url,
+                channel_service=channel_service,
+            )
         except Exception as e:
             logger.warning(f"Bot JWT validation failed: {e}")
             return JSONResponse({"detail": "Unauthorized"}, status_code=401)
@@ -752,13 +764,23 @@ async def bot_webhook(request: Request, db: AsyncSession = Depends(get_db)):
         # Could not match to an app user yet; ignore silently
         return JSONResponse({"detail": "No matching user for Teams activity"}, status_code=200)
 
-    # Store a DM conversation reference in dedicated table
-    saved = await TeamsConversationService.upsert_personal(
-        db=db,
-        user_id=integ.user_id,
-        service_url=service_url,
-        conversation_id=conversation_id,
-    )
+    # Store conversation reference (DM or team channel)
+    if conv_type == "channel" and team_id and channel_id:
+        saved = await TeamsConversationService.upsert_team(
+            db=db,
+            user_id=integ.user_id,
+            service_url=service_url,
+            conversation_id=conversation_id,
+            team_id=team_id,
+            channel_id=channel_id,
+        )
+    else:
+        saved = await TeamsConversationService.upsert_personal(
+            db=db,
+            user_id=integ.user_id,
+            service_url=service_url,
+            conversation_id=conversation_id,
+        )
     if not saved:
         logger.error("Failed to persist DM conversation ref")
 

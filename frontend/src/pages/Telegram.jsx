@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { authenticatedFetch } from '../utils/api';
-import './Telegram.css';
+// Tailwind component mappings in index.css replace the old CSS file
 
 function Telegram() {
   const [searchParams] = useSearchParams();

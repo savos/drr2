@@ -21,6 +21,8 @@ from jose import jwt, JWTError
 import hmac
 import hashlib
 import time
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
+from cryptography.exceptions import InvalidSignature
 
 logger = logging.getLogger(__name__)
 
@@ -228,6 +230,33 @@ def _verify_discord_signature(request: Request, body: bytes, signing_secret: str
     return hmac.compare_digest(expected, sig)
 
 
+def _verify_discord_interaction(request: Request, body: bytes, public_key_hex: str) -> bool:
+    """Verify Discord Interactions (Ed25519) signature.
+    Headers:
+      - X-Signature-Ed25519: hex signature
+      - X-Signature-Timestamp: string timestamp
+    Message = timestamp + raw_body
+    """
+    sig_hex = request.headers.get("X-Signature-Ed25519", "")
+    ts = request.headers.get("X-Signature-Timestamp", "0")
+    if not sig_hex or not ts or not public_key_hex:
+        return False
+    # optional replay guard (5 minutes)
+    try:
+        if abs(int(time.time()) - int(ts)) > 60 * 5:
+            return False
+    except Exception:
+        return False
+    try:
+        pk = Ed25519PublicKey.from_public_bytes(bytes.fromhex(public_key_hex))
+        sig = bytes.fromhex(sig_hex)
+        message = ts.encode() + body
+        pk.verify(sig, message)
+        return True
+    except (ValueError, InvalidSignature):
+        return False
+
+
 @router.post("/events")
 async def discord_events(request: Request, db: AsyncSession = Depends(get_db)):
     """
@@ -310,6 +339,30 @@ async def discord_events(request: Request, db: AsyncSession = Depends(get_db)):
         return JSONResponse(content={"ok": True})
 
     return JSONResponse(content={"ok": True})
+
+
+@router.post("/interactions")
+async def discord_interactions(request: Request):
+    """Discord Interactions endpoint with Ed25519 verification.
+
+    - Verifies X-Signature-Ed25519 and X-Signature-Timestamp using DISCORD_PUBLIC_KEY
+    - Responds to Ping with PONG (type 1)
+    """
+    raw_body = await request.body()
+    public_key = os.getenv("DISCORD_PUBLIC_KEY", "")
+    if not public_key:
+        return JSONResponse(status_code=500, content={"error": "DISCORD_PUBLIC_KEY not configured"})
+    if not _verify_discord_interaction(request, raw_body, public_key):
+        return JSONResponse(status_code=401, content={"error": "Invalid signature"})
+    try:
+        payload = await request.json()
+    except Exception:
+        payload = {}
+    # Discord ping
+    if payload.get("type") == 1:
+        return JSONResponse(content={"type": 1})
+    # For now, acknowledge others
+    return JSONResponse(content={"type": 5})
 
 
 @router.get("/integrations", response_model=list[DiscordRead])

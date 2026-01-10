@@ -59,3 +59,41 @@ class TeamsConversationService:
             logger.error(f"DB error getting TeamsConversation: {e}")
             return None
 
+    @staticmethod
+    async def upsert_team(
+        db: AsyncSession,
+        user_id: str,
+        service_url: str,
+        conversation_id: str,
+        team_id: str,
+        channel_id: str,
+    ) -> Optional[TeamsConversation]:
+        try:
+            result = await db.execute(
+                select(TeamsConversation).where(
+                    TeamsConversation.conversation_id == conversation_id
+                )
+            )
+            row = result.scalar_one_or_none()
+            if row:
+                row.service_url = service_url
+                row.team_id = team_id
+                row.channel_id = channel_id
+                row.scope = "team"
+            else:
+                row = TeamsConversation(
+                    user_id=user_id,
+                    scope="team",
+                    service_url=service_url,
+                    conversation_id=conversation_id,
+                    team_id=team_id,
+                    channel_id=channel_id,
+                )
+                db.add(row)
+            await db.commit()
+            await db.refresh(row)
+            return row
+        except SQLAlchemyError as e:
+            await db.rollback()
+            logger.error(f"DB error upserting TeamsConversation team: {e}")
+            return None

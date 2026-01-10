@@ -45,7 +45,7 @@ import {
   CompanyPage,
 } from './pages/DashboardPages';
 
-import './App.css';
+// Tailwind styles are loaded via src/index.css and @layer components
 
 // Protected Route Component
 function ProtectedRoute({ children }) {

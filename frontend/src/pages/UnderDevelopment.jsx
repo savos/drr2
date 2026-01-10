@@ -1,5 +1,5 @@
 import React from "react";
-import "./UnderDevelopment.css";
+// Tailwind component mappings in index.css replace the old CSS file
 
 export default function UnderDevelopment() {
   return (

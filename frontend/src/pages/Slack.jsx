@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { authenticatedFetch } from '../utils/api';
-import './Slack.css';
+// Tailwind component mappings in index.css replace the old CSS file
 
 function Slack() {
   const [searchParams] = useSearchParams();

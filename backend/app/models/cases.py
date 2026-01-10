@@ -20,7 +20,12 @@ class Case(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     company = Column(String(32), nullable=False)
     problem = Column(
-        SQLAlchemyEnum(ProblemType, native_enum=False, length=20),
+        SQLAlchemyEnum(
+            ProblemType,
+            native_enum=False,
+            values_callable=lambda x: [e.value for e in x],
+            length=20
+        ),
         nullable=False,
         comment="Type of problem: Domain, SSL, or Domain, SSL"
     )

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import './Auth.css';
+// Tailwind component mappings in index.css replace the old CSS file
 
 function Auth() {
   const navigate = useNavigate();

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import './Dashboard.css';
+// Tailwind component mappings in index.css replace the old CSS file
 
 function Dashboard() {
   const [user, setUser] = useState(null);
