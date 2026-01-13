@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 // Tailwind component mappings in index.css replace the old CSS file
 
-function Auth() {
+function Auth({ onAuthSuccess }) {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
     firstname: '',
@@ -190,15 +190,22 @@ function Auth() {
         }),
       });
 
-      const data = await response.json();
+      let data = null;
+      const contentType = response.headers.get('content-type') || '';
+      if (contentType.includes('application/json')) {
+        data = await response.json();
+      }
 
       if (!response.ok) {
-        throw new Error(data.detail || 'Registration failed');
+        throw new Error(data?.detail || 'Registration failed');
       }
 
       // Store token and user data
       localStorage.setItem('access_token', data.access_token);
       localStorage.setItem('user', JSON.stringify(data.user));
+      if (onAuthSuccess) {
+        onAuthSuccess(data.user);
+      }
 
       // Redirect to dashboard
       navigate('/dashboard');
@@ -283,7 +290,7 @@ function Auth() {
             )}
             {emailValid === true && (
               <div className="validation-message success">
-                ✓ Valid email format
+                OK Valid email format
               </div>
             )}
           </div>
@@ -308,19 +315,19 @@ function Auth() {
                   </div>
                   <div className="strength-checklist">
                     <div className={passwordStrength.checks.length ? 'check-passed' : 'check-failed'}>
-                      {passwordStrength.checks.length ? '✓' : '○'} At least 8 characters
+                      {passwordStrength.checks.length ? 'OK' : 'X'} At least 8 characters
                     </div>
                     <div className={passwordStrength.checks.uppercase ? 'check-passed' : 'check-failed'}>
-                      {passwordStrength.checks.uppercase ? '✓' : '○'} One uppercase letter
+                      {passwordStrength.checks.uppercase ? 'OK' : 'X'} One uppercase letter
                     </div>
                     <div className={passwordStrength.checks.lowercase ? 'check-passed' : 'check-failed'}>
-                      {passwordStrength.checks.lowercase ? '✓' : '○'} One lowercase letter
+                      {passwordStrength.checks.lowercase ? 'OK' : 'X'} One lowercase letter
                     </div>
                     <div className={passwordStrength.checks.number ? 'check-passed' : 'check-failed'}>
-                      {passwordStrength.checks.number ? '✓' : '○'} One number
+                      {passwordStrength.checks.number ? 'OK' : 'X'} One number
                     </div>
                     <div className={passwordStrength.checks.special ? 'check-passed' : 'check-failed'}>
-                      {passwordStrength.checks.special ? '✓' : '○'} One special character
+                      {passwordStrength.checks.special ? 'OK' : 'X'} One special character
                     </div>
                   </div>
                 </>
@@ -349,7 +356,7 @@ function Auth() {
             <div className="password-match-container">
               {formData.repeatPassword && (
                 <div className={`validation-message ${passwordsMatch ? 'success' : 'error'}`}>
-                  {passwordsMatch ? '✓ Passwords match' : '✗ Passwords do not match'}
+                  {passwordsMatch ? 'OK Passwords match' : 'X Passwords do not match'}
                 </div>
               )}
               {!formData.repeatPassword && (

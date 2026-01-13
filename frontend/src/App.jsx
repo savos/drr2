@@ -94,6 +94,12 @@ function App() {
     setUser(null);
   };
 
+  const handleAuthSuccess = (nextUser) => {
+    if (nextUser) {
+      setUser(nextUser);
+    }
+  };
+
   return (
     <Router>
       <div className="app-container">
@@ -104,8 +110,8 @@ function App() {
           {/* Public Routes with Header */}
           <Route element={<PublicLayout user={user} onLogout={handleLogout} />}>
             <Route path="/home" element={<Home />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/register" element={<Auth />} />
+            <Route path="/login" element={<Login onAuthSuccess={handleAuthSuccess} />} />
+            <Route path="/register" element={<Auth onAuthSuccess={handleAuthSuccess} />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/about" element={<AboutPage />} />

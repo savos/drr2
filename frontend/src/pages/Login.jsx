@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 // Tailwind component mappings in index.css replace the old CSS file
 
-function Login() {
+function Login({ onAuthSuccess }) {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
     email: '',
@@ -34,15 +34,22 @@ function Login() {
         }),
       });
 
-      const data = await response.json();
+      let data = null;
+      const contentType = response.headers.get('content-type') || '';
+      if (contentType.includes('application/json')) {
+        data = await response.json();
+      }
 
       if (!response.ok) {
-        throw new Error(data.detail || 'Login failed');
+        throw new Error(data?.detail || 'Login failed');
       }
 
       // Store token and user data
       localStorage.setItem('access_token', data.access_token);
       localStorage.setItem('user', JSON.stringify(data.user));
+      if (onAuthSuccess) {
+        onAuthSuccess(data.user);
+      }
 
       // Redirect to dashboard
       navigate('/dashboard');
