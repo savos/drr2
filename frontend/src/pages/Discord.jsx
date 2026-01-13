@@ -12,6 +12,7 @@ function Discord() {
   const [error, setError] = useState(null);
   const [successMessage, setSuccessMessage] = useState(null);
   const [startLink, setStartLink] = useState('');
+  const [inviteUrl, setInviteUrl] = useState('');
   const [botName, setBotName] = useState('');
   const [showGuildModal, setShowGuildModal] = useState(false);
 
@@ -102,9 +103,22 @@ function Discord() {
     }
   }, []);
 
+  const loadInviteUrl = useCallback(async () => {
+    try {
+      const response = await authenticatedFetch('/api/discord/bot/invite-url');
+      if (response.ok) {
+        const data = await response.json();
+        setInviteUrl(data.invite_url || '');
+      }
+    } catch (err) {
+      console.error('[Discord] Error loading invite URL:', err);
+    }
+  }, []);
+
   useEffect(() => {
     loadIntegrations();
     loadStartLink();
+    loadInviteUrl();
 
     // Listen for visibility change (when user returns from Discord)
     const handleVisibilityChange = () => {
@@ -119,7 +133,7 @@ function Discord() {
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [loadIntegrations, loadStartLink]);
+  }, [loadIntegrations, loadStartLink, loadInviteUrl]);
 
   const handleTestConnection = async (integrationId) => {
     try {
@@ -325,6 +339,17 @@ function Discord() {
             <span className="discord-icon">💬</span>
             Connect Discord
           </a>
+          {inviteUrl && (
+            <a
+              href={inviteUrl}
+              className="btn btn-secondary btn-large"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ marginLeft: '0.75rem' }}
+            >
+              Add Bot to Server
+            </a>
+          )}
           {botName && (
             <p className="bot-info">
               Bot: <strong>{botName}</strong>
