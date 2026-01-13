@@ -711,8 +711,9 @@ async def get_bot_invite_url():
     client_id = os.getenv("DISCORD_CLIENT_ID")
     if not client_id:
         raise HTTPException(status_code=500, detail="DISCORD_CLIENT_ID not configured")
-    # View Channels (1024) + Send Messages (2048) + Embed Links (16384) + Read Message History (65536) + Send Messages in Threads (1048576)
-    permissions = 1024 + 2048 + 16384 + 65536 + 1048576  # 1,133,568
+    # View Audit Log (128) + View Channels (1024) + Send Messages (2048) + Embed Links (16384)
+    # + Read Message History (65536) + Send Messages in Threads (1048576)
+    permissions = 128 + 1024 + 2048 + 16384 + 65536 + 1048576  # 1,133,696
     invite_url = (
         f"https://discord.com/api/oauth2/authorize?client_id={client_id}"
         f"&permissions={permissions}&scope=bot"
@@ -744,6 +745,13 @@ async def get_available_guilds(
                 "guilds": [],
                 "error": "no_integration",
                 "message": "Please connect Discord first."
+            }
+        if not dm_integration.discord_user_id:
+            logger.warning(f"User {current_user.id} missing discord_user_id on integration")
+            return {
+                "guilds": [],
+                "error": "no_integration",
+                "message": "Please reconnect Discord to refresh your user information."
             }
 
         # Parse stored guild IDs (comma-separated) - field named owned_guild_ids but stores ALL guilds
@@ -782,6 +790,7 @@ async def get_available_guilds(
         }
 
         available_guilds = []
+        audit_log_denied = False
 
         for guild_id in available_guild_ids:
             guild = bot_guild_map.get(guild_id)
@@ -789,6 +798,15 @@ async def get_available_guilds(
                 continue
 
             try:
+                # Get channels the user created (via audit logs)
+                created_channel_ids = await discord_consumer.get_user_created_channels(
+                    guild_id=guild_id,
+                    user_id=dm_integration.discord_user_id
+                )
+
+                if not created_channel_ids:
+                    continue
+
                 # Get channels for this guild (bot can see these)
                 channels = await discord_consumer.get_guild_channels(guild_id)
 
@@ -801,6 +819,10 @@ async def get_available_guilds(
 
                     # Only include text channels (0) and announcement channels (5)
                     if channel_type not in [0, 5]:
+                        continue
+
+                    # Only include channels created by the user
+                    if channel_id not in created_channel_ids:
                         continue
 
                     # Skip if already integrated
@@ -820,19 +842,26 @@ async def get_available_guilds(
                         "id": guild_id,
                         "name": guild.get("name"),
                         "icon": guild.get("icon"),
-                        "owner": True,  # Always true since we filtered to owned guilds
+                        "owner": False,
                         "channels": available_channels
                     })
 
             except DiscordAPIError as e:
+                if getattr(e, "status_code", None) == 403:
+                    audit_log_denied = True
                 logger.warning(f"Failed to get channels for guild {guild_id}: {e}")
                 continue
 
         # If user is in guilds but bot isn't in any of them, provide guidance
         if not available_guilds and user_guild_ids:
+            if audit_log_denied:
+                return {
+                    "guilds": [],
+                    "message": "The bot needs 'View Audit Log' permission in your server to list channels you created."
+                }
             return {
                 "guilds": [],
-                "message": "The bot isn't installed in any of your servers yet. Use the 'Add Bot to Server' button to invite the bot to a server you have access to."
+                "message": "No servers were found with channels you created. Ensure the bot is installed in your servers and try again."
             }
 
         logger.info(f"User {current_user.id} has {len(available_guilds)} guilds with available channels")

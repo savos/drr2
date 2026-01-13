@@ -290,14 +290,34 @@ if (( elapsed >= max_wait )); then
   log "Warning: Backend container may not be ready yet, but proceeding with migration attempt"
 fi
 
+log "Checking Alembic version table"
+check_output="$(compose exec -T backend bash -c "python - <<'PY'\nimport os\nimport pymysql\n\nhost = os.getenv('DB_HOST', 'db')\nport = int(os.getenv('DB_PORT', '3306'))\nuser = os.getenv('DB_USER', 'user')\npassword = os.getenv('DB_PASSWORD', 'password')\ndb_name = os.getenv('DB_NAME', 'app_db')\n\nconn = pymysql.connect(host=host, port=port, user=user, password=password, database=db_name)\ntry:\n    with conn.cursor() as cursor:\n        cursor.execute(\"SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=%s AND table_name='alembic_version'\", (db_name,))\n        alembic_exists = cursor.fetchone()[0] > 0\n        cursor.execute(\"SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=%s\", (db_name,))\n        table_count = cursor.fetchone()[0]\nfinally:\n    conn.close()\n\nprint(f\"alembic_version_exists={int(alembic_exists)}\")\nprint(f\"table_count={table_count}\")\nPY" 2>&1)"
+check_status=$?
+printf '%s\n' "$check_output" | tee -a "$LOG_FILE"
+if [[ $check_status -ne 0 ]]; then
+  log "WARNING: Unable to verify alembic_version table; proceeding with migration attempt"
+else
+  if printf '%s\n' "$check_output" | grep -q "alembic_version_exists=0"; then
+    table_count="$(printf '%s\n' "$check_output" | awk -F= '/table_count=/{print $2}' | tail -n1)"
+    if [[ -n "$table_count" && "$table_count" != "0" ]]; then
+      log "Missing alembic_version table on existing DB; stamping baseline"
+      if ! compose exec -T backend bash -c "cd /backend/app && python -m alembic stamp 0001_initial"; then
+        log "ERROR: Failed to stamp database baseline"
+        exit 1
+      fi
+    fi
+  fi
+fi
+
 log "Running database migrations"
 if compose exec -T backend bash -c "cd /backend/app && python -m alembic upgrade head" 2>&1 | tee -a "$LOG_FILE"; then
   log "Database migrations completed successfully"
 else
   migration_exit_code=$?
-  log "WARNING: Database migration failed with exit code $migration_exit_code"
-  log "Deployment will continue, but database schema may be out of sync"
-  log "You may need to manually run: docker exec app-backend bash -c 'cd /backend/app && python -m alembic upgrade head'"
+  log "ERROR: Database migration failed with exit code $migration_exit_code"
+  log "Aborting deployment to avoid running with a stale schema"
+  log "You can retry after fixing the issue by running: docker exec app-backend bash -c 'cd /backend/app && python -m alembic upgrade head'"
+  exit "$migration_exit_code"
 fi
 
 log "Pruning unused Docker images"

@@ -69,6 +69,7 @@ async def lifespan(app: FastAPI):
 
     except Exception:
         logger.exception("Failed to initialize database schema.")
+        raise
 
     yield
 

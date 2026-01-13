@@ -276,7 +276,7 @@ function Discord() {
             <div className="step-number">2</div>
             <div className="step-content">
               <h3>Select Channels</h3>
-              <p>Choose which channels should receive domain expiration notifications. The bot can see channels it has access to in your servers.</p>
+              <p>Choose which channels you created should receive domain expiration notifications. The bot can only list channels it has access to in your servers.</p>
             </div>
           </div>
 

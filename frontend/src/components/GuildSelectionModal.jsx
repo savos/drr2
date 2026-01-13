@@ -190,7 +190,7 @@ function GuildSelectionModal({ show, onClose, onSubmit, onReconnect }) {
           ) : (
             <>
               <p className="modal-description">
-                Select channels from your Discord servers. Click a server to expand and select individual channels.
+                Select channels you created on your Discord servers. Click a server to expand and select individual channels.
               </p>
               <div className="guilds-list">
                 {guilds.map((guild) => {

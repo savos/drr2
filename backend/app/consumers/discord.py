@@ -9,7 +9,10 @@ logger = logging.getLogger(__name__)
 
 class DiscordAPIError(Exception):
     """Custom exception for Discord API errors."""
-    pass
+
+    def __init__(self, message: str, status_code: Optional[int] = None):
+        super().__init__(message)
+        self.status_code = status_code
 
 
 class DiscordConsumer:
@@ -252,6 +255,42 @@ class DiscordConsumer:
 
             except httpx.HTTPError as e:
                 logger.error(f"HTTP error getting Discord channel info: {e}")
+                raise DiscordAPIError(f"HTTP error: {str(e)}")
+
+    async def get_user_created_channels(self, guild_id: str, user_id: str) -> set[str]:
+        """Get channel IDs created by the user in a guild (via audit logs)."""
+        async with httpx.AsyncClient() as client:
+            try:
+                response = await client.get(
+                    f"{self.api_base}/guilds/{guild_id}/audit-logs",
+                    headers={
+                        "Authorization": f"Bot {self.bot_token}",
+                    },
+                    params={
+                        "user_id": user_id,
+                        "action_type": 10,  # CHANNEL_CREATE
+                        "limit": 100,
+                    },
+                    timeout=10.0
+                )
+
+                if response.status_code != 200:
+                    error_data = response.json() if response.text else {}
+                    error_msg = error_data.get("message", f"Audit log failed with status {response.status_code}")
+                    logger.error(f"Discord API error getting audit logs: {error_msg}")
+                    raise DiscordAPIError(error_msg, status_code=response.status_code)
+
+                data = response.json()
+                entries = data.get("audit_log_entries") or data.get("entries") or []
+                created_channel_ids = {
+                    entry.get("target_id")
+                    for entry in entries
+                    if entry.get("target_id")
+                }
+                return created_channel_ids
+
+            except httpx.HTTPError as e:
+                logger.error(f"HTTP error getting Discord audit logs: {e}")
                 raise DiscordAPIError(f"HTTP error: {str(e)}")
 
 
