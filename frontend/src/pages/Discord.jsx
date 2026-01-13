@@ -262,7 +262,7 @@ function Discord() {
             <div className="step-number">2</div>
             <div className="step-content">
               <h3>Authorize the Application</h3>
-              <p>You'll be redirected to Discord. Click "Authorize" to allow DRR to send you direct messages.</p>
+              <p>You'll be redirected to Discord. Click "Authorize" and select a server to install the bot (Discord will show a server picker).</p>
             </div>
           </div>
 
@@ -282,7 +282,7 @@ function Discord() {
             <div className="step-number">1</div>
             <div className="step-content">
               <h3>Add Bot to Your Server</h3>
-              <p>Use the bot invite link to add DRR to a Discord server you have access to. The bot must have the "View Audit Log" permission to list channels you created.</p>
+              <p>During authorization you can install the bot to a server. If you skip it, use the invite link below. The bot must have the "View Audit Log" permission to list channels you created.</p>
             </div>
           </div>
 

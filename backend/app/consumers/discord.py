@@ -34,13 +34,18 @@ class DiscordConsumer:
 
     def get_oauth_url(self, state: str) -> str:
         """Get Discord OAuth2 authorization URL."""
-        scopes = "identify guilds"
+        # Include bot scope so Discord shows the server selection during OAuth.
+        scopes = "identify guilds bot"
+        # View Audit Log (128) + View Channels (1024) + Send Messages (2048) + Embed Links (16384)
+        # + Read Message History (65536) + Send Messages in Threads (1048576)
+        permissions = 128 + 1024 + 2048 + 16384 + 65536 + 1048576  # 1,133,696
         return (
             f"https://discord.com/api/oauth2/authorize"
             f"?client_id={self.client_id}"
             f"&redirect_uri={self.redirect_uri}"
             f"&response_type=code"
             f"&scope={scopes}"
+            f"&permissions={permissions}"
             f"&state={state}"
         )
 
