@@ -21,6 +21,10 @@ class User(Base):
     verified = Column(Integer, default=0, nullable=False)  # tinyint(1): 0=False, 1=True
     is_superuser = Column(Integer, default=0, nullable=False)  # tinyint(1): 0=False, 1=True
 
+    # Password reset fields
+    reset_token = Column(String(256), nullable=True, default=None)  # Hashed reset token
+    reset_token_expires = Column(DateTime, nullable=True, default=None)  # Token expiration
+
     # Notification channel status
     # Values: 'disabled', 'enabled', 'verifying', 'verified'
     notifications = Column(String(20), default='disabled', nullable=False)

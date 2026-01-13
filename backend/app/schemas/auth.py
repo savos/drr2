@@ -72,3 +72,48 @@ class PasswordStrengthResponse(BaseModel):
     is_valid: bool
     message: str
     strength: str  # weak, medium, strong
+
+
+class ForgotPasswordRequest(BaseModel):
+    """Schema for forgot password request."""
+    email: EmailStr
+
+    @field_validator("email")
+    @classmethod
+    def lowercase_email(cls, v: str) -> str:
+        """Convert email to lowercase."""
+        return v.lower()
+
+
+class ResetPasswordRequest(BaseModel):
+    """Schema for password reset request."""
+    token: str = Field(..., min_length=1)
+    password: str = Field(..., min_length=8)
+
+    @field_validator("password")
+    @classmethod
+    def validate_password(cls, v: str) -> str:
+        """Validate password strength."""
+        if len(v) < 8:
+            raise ValueError("Password must be at least 8 characters long")
+
+        if not any(c.isupper() for c in v):
+            raise ValueError("Password must contain at least 1 uppercase letter")
+
+        if not any(c.islower() for c in v):
+            raise ValueError("Password must contain at least 1 lowercase letter")
+
+        if not any(c.isdigit() for c in v):
+            raise ValueError("Password must contain at least 1 number")
+
+        special_characters = "!@#$%^&*()_+-=[]{}|;:,.<>?"
+        if not any(c in special_characters for c in v):
+            raise ValueError("Password must contain at least 1 special character")
+
+        return v
+
+
+class MessageResponse(BaseModel):
+    """Generic message response."""
+    message: str
+    success: bool = True

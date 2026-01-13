@@ -1,7 +1,9 @@
 """Security utilities for password hashing and JWT token management."""
 import os
-from datetime import datetime, timedelta
-from typing import Optional
+import secrets
+import hashlib
+from datetime import datetime, timedelta, timezone
+from typing import Optional, Tuple
 from passlib.context import CryptContext
 from jose import JWTError, jwt
 from fastapi import Depends, HTTPException, status
@@ -12,7 +14,18 @@ from sqlalchemy import select
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 # JWT configuration
-SECRET_KEY = os.getenv("JWT_SECRET", "your-secret-key-change-this-in-production")
+_jwt_secret = os.getenv("JWT_SECRET")
+if not _jwt_secret:
+    import warnings
+    warnings.warn(
+        "JWT_SECRET environment variable not set! Using auto-generated secret. "
+        "This is insecure for production - set JWT_SECRET in your .env file.",
+        RuntimeWarning
+    )
+    # Generate a random secret for this process (will change on restart)
+    _jwt_secret = secrets.token_urlsafe(32)
+
+SECRET_KEY = _jwt_secret
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24  # 24 hours
 
@@ -124,6 +137,88 @@ def validate_password_strength(password: str) -> tuple[bool, str]:
         return False, "Password must contain at least 1 special character (!@#$%^&*()_+-=[]{}|;:,.<>?)"
 
     return True, "Password is strong"
+
+
+# Password Reset Token Configuration
+RESET_TOKEN_EXPIRE_HOURS = 1  # Reset tokens expire after 1 hour
+
+
+def generate_reset_token() -> Tuple[str, str]:
+    """
+    Generate a secure password reset token.
+
+    Returns:
+        Tuple of (plain_token, hashed_token)
+        - plain_token: Send this to the user (in email link)
+        - hashed_token: Store this in the database
+    """
+    # Generate a cryptographically secure random token
+    plain_token = secrets.token_urlsafe(32)
+
+    # Hash the token for storage (using SHA-256 for speed since tokens are already random)
+    hashed_token = hashlib.sha256(plain_token.encode()).hexdigest()
+
+    return plain_token, hashed_token
+
+
+def hash_reset_token(token: str) -> str:
+    """
+    Hash a reset token for comparison.
+
+    Args:
+        token: Plain text reset token
+
+    Returns:
+        Hashed token
+    """
+    return hashlib.sha256(token.encode()).hexdigest()
+
+
+def verify_reset_token(plain_token: str, hashed_token: str) -> bool:
+    """
+    Verify a reset token against its hash.
+
+    Uses constant-time comparison to prevent timing attacks.
+
+    Args:
+        plain_token: Plain text token from user
+        hashed_token: Hashed token from database
+
+    Returns:
+        True if tokens match
+    """
+    computed_hash = hash_reset_token(plain_token)
+    return secrets.compare_digest(computed_hash, hashed_token)
+
+
+def get_reset_token_expiry() -> datetime:
+    """
+    Get the expiration datetime for a new reset token.
+
+    Returns:
+        Datetime when the token will expire
+    """
+    return datetime.now(timezone.utc) + timedelta(hours=RESET_TOKEN_EXPIRE_HOURS)
+
+
+def is_reset_token_expired(expiry: Optional[datetime]) -> bool:
+    """
+    Check if a reset token has expired.
+
+    Args:
+        expiry: Token expiration datetime
+
+    Returns:
+        True if token is expired or expiry is None
+    """
+    if expiry is None:
+        return True
+
+    # Make expiry timezone-aware if it isn't
+    if expiry.tzinfo is None:
+        expiry = expiry.replace(tzinfo=timezone.utc)
+
+    return datetime.now(timezone.utc) > expiry
 
 
 # HTTP Bearer token scheme

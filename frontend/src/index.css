@@ -105,6 +105,8 @@
   .login-form { @apply space-y-5; }
   .login-footer { @apply mt-6 pt-6 border-t border-zinc-200 text-center text-sm text-zinc-600; }
   .login-footer .link { @apply text-indigo-600 font-semibold hover:text-indigo-700 no-underline; }
+  .forgot-password-link { @apply text-right text-sm mb-4; }
+  .forgot-password-link a { @apply text-indigo-600 hover:text-indigo-700 no-underline; }
 
   /* Auth / Sign Up Page */
   .auth-container { @apply min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-50 via-white to-zinc-100 p-4 py-12; }
@@ -147,4 +149,11 @@
   /* Password match */
   .password-match-container { @apply mt-2 min-h-[24px]; }
   .match-placeholder { @apply text-xs text-zinc-400 italic; }
+
+  /* Success/Error icons for auth pages */
+  .success-icon { @apply w-16 h-16 mx-auto mb-4 text-emerald-500; }
+  .success-icon svg { @apply w-full h-full; }
+  .error-icon { @apply w-16 h-16 mx-auto mb-4 text-red-500; }
+  .error-icon svg { @apply w-full h-full; }
+  .hint-text { @apply text-sm text-zinc-500 mt-4; }
 }
