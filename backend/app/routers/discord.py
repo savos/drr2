@@ -781,6 +781,13 @@ async def get_available_guilds(
         available_guild_ids = user_guild_ids & set(bot_guild_map.keys())
         logger.info(f"Intersection (user member AND bot present): {len(available_guild_ids)} guilds")
 
+        if not available_guild_ids:
+            return {
+                "guilds": [],
+                "error": "bot_not_installed",
+                "message": "The DRR bot is not installed in any of your servers yet. Use the invite link to add it, then refresh."
+            }
+
         # Get user's existing integrations
         user_integrations = await discord_service.get_by_user(db, current_user.id)
         integrated_channels = {
@@ -857,11 +864,13 @@ async def get_available_guilds(
             if audit_log_denied:
                 return {
                     "guilds": [],
-                    "message": "The bot needs 'View Audit Log' permission in your server to list channels you created."
+                    "error": "audit_log_denied",
+                    "message": "The bot needs 'View Audit Log' permission to list channels you created. Re-invite the bot and grant that permission."
                 }
             return {
                 "guilds": [],
-                "message": "No servers were found with channels you created. Ensure the bot is installed in your servers and try again."
+                "error": "no_created_channels",
+                "message": "No servers were found with channels you created. Create a channel in a server where the bot is installed, then refresh."
             }
 
         logger.info(f"User {current_user.id} has {len(available_guilds)} guilds with available channels")

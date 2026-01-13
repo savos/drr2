@@ -11,14 +11,29 @@ function GuildSelectionModal({ show, onClose, onSubmit, onReconnect }) {
   const [error, setError] = useState(null);
   const [infoMessage, setInfoMessage] = useState(null);
   const [needsReconnect, setNeedsReconnect] = useState(false);
+  const [errorCode, setErrorCode] = useState(null);
+  const [inviteUrl, setInviteUrl] = useState('');
 
   useEffect(() => {
     if (show) {
       loadAvailableGuilds();
+      loadInviteUrl();
       setExpandedGuildIds(new Set());
       setSelectedChannels(new Map());
     }
   }, [show]);
+
+  const loadInviteUrl = async () => {
+    try {
+      const response = await authenticatedFetch('/api/discord/bot/invite-url');
+      if (response.ok) {
+        const data = await response.json();
+        setInviteUrl(data.invite_url || '');
+      }
+    } catch (err) {
+      console.error('Error loading Discord invite URL:', err);
+    }
+  };
 
   const loadAvailableGuilds = async () => {
     try {
@@ -26,12 +41,14 @@ function GuildSelectionModal({ show, onClose, onSubmit, onReconnect }) {
       setError(null);
       setInfoMessage(null);
       setNeedsReconnect(false);
+      setErrorCode(null);
 
       const response = await authenticatedFetch('/api/discord/available-guilds');
 
       if (response.ok) {
         const data = await response.json();
         setGuilds(data.guilds || []);
+        setErrorCode(data.error || null);
 
         // Handle special error/message responses
         if (data.error === 'no_token' || data.error === 'token_expired' ||
@@ -146,6 +163,12 @@ function GuildSelectionModal({ show, onClose, onSubmit, onReconnect }) {
 
   if (!show) return null;
 
+  const showInviteAction = Boolean(inviteUrl) && (
+    errorCode === 'bot_not_installed' ||
+    errorCode === 'audit_log_denied' ||
+    errorCode === 'no_created_channels'
+  );
+
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-content" onClick={(e) => e.stopPropagation()}>
@@ -170,6 +193,17 @@ function GuildSelectionModal({ show, onClose, onSubmit, onReconnect }) {
           ) : needsReconnect ? (
             <div className="modal-empty">
               <p>{infoMessage || 'Your Discord authorization needs to be refreshed.'}</p>
+              {showInviteAction && (
+                <a
+                  className="btn btn-secondary"
+                  href={inviteUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ marginTop: '0.75rem' }}
+                >
+                  Add Bot to Server
+                </a>
+              )}
               <button
                 className="btn btn-primary"
                 onClick={() => {
@@ -186,6 +220,17 @@ function GuildSelectionModal({ show, onClose, onSubmit, onReconnect }) {
               <p className="hint-text">
                 Make sure the DRR bot is added to servers you have access to.
               </p>
+              {showInviteAction && (
+                <a
+                  className="btn btn-primary"
+                  href={inviteUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ marginTop: '0.75rem' }}
+                >
+                  Add Bot to Server
+                </a>
+              )}
             </div>
           ) : (
             <>

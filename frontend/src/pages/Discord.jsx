@@ -268,7 +268,7 @@ function Discord() {
             <div className="step-number">1</div>
             <div className="step-content">
               <h3>Add Bot to Your Server</h3>
-              <p>Use the bot invite link to add DRR to a Discord server you have access to. Servers you've created or joined will be available for integration.</p>
+              <p>Use the bot invite link to add DRR to a Discord server you have access to. The bot must have the "View Audit Log" permission to list channels you created.</p>
             </div>
           </div>
 
@@ -276,7 +276,7 @@ function Discord() {
             <div className="step-number">2</div>
             <div className="step-content">
               <h3>Select Channels</h3>
-              <p>Choose which channels you created should receive domain expiration notifications. The bot can only list channels it has access to in your servers.</p>
+              <p>Choose which channels you created should receive domain expiration notifications. Only channels created by you and visible to the bot will appear in the list.</p>
             </div>
           </div>
 
@@ -285,6 +285,14 @@ function Discord() {
             <div className="step-content">
               <h3>Receive Server Notifications</h3>
               <p>All server members with access to the channel will see domain and SSL expiration notifications.</p>
+            </div>
+          </div>
+
+          <div className="instruction-step">
+            <div className="step-number">4</div>
+            <div className="step-content">
+              <h3>No Servers Showing?</h3>
+              <p>Re-invite the bot with the updated permissions and create at least one channel in that server, then refresh the modal.</p>
             </div>
           </div>
         </div>
