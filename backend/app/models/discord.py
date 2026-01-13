@@ -30,6 +30,7 @@ class Discord(Base):
     channel_name = Column(String(255), nullable=True, comment="Discord channel name - NULL for DMs")
     username = Column(String(255), nullable=True, comment="Discord username")
     global_name = Column(String(255), nullable=True, comment="Discord display name")
+    owned_guild_ids = Column(String(2000), nullable=True, comment="Comma-separated list of guild IDs user owns")
     status = Column(
         SQLAlchemyEnum(DiscordStatus, native_enum=False, length=16),
         nullable=False,

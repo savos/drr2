@@ -179,6 +179,13 @@ function Discord() {
     loadIntegrations(); // Reload to show new integrations
   };
 
+  const handleReconnectDiscord = () => {
+    // Redirect to OAuth URL to refresh authorization
+    if (startLink) {
+      window.location.href = startLink;
+    }
+  };
+
   const getStatusBadge = (status) => {
     const statusClasses = {
       'DISABLED': 'status-disabled',
@@ -261,15 +268,15 @@ function Discord() {
             <div className="step-number">1</div>
             <div className="step-content">
               <h3>Add Bot to Your Server</h3>
-              <p>Use the bot invite link to add DRR to your Discord server. Select the server and authorize the bot.</p>
+              <p>Use the bot invite link to add DRR to a Discord server <strong>you own</strong>. Only servers you created will be available for integration.</p>
             </div>
           </div>
 
           <div className="instruction-step">
             <div className="step-number">2</div>
             <div className="step-content">
-              <h3>Select a Channel</h3>
-              <p>Choose which channel should receive domain expiration notifications. The bot needs Send Messages permission in that channel.</p>
+              <h3>Select Channels</h3>
+              <p>Choose which channels should receive domain expiration notifications. The bot can see both public and private channels in servers you own.</p>
             </div>
           </div>
 
@@ -420,6 +427,7 @@ function Discord() {
         show={showGuildModal}
         onClose={handleGuildModalClose}
         onSubmit={handleGuildModalSubmit}
+        onReconnect={handleReconnectDiscord}
       />
     </div>
   );

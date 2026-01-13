@@ -25,7 +25,8 @@ class DiscordService:
         guild_name: Optional[str] = None,
         channel_id: Optional[str] = None,
         channel_name: Optional[str] = None,
-        status: DiscordStatus = DiscordStatus.ENABLED
+        status: DiscordStatus = DiscordStatus.ENABLED,
+        owned_guild_ids: Optional[str] = None
     ) -> Discord:
         """Create a new Discord integration (DM or channel)."""
         try:
@@ -42,6 +43,8 @@ class DiscordService:
                 existing.channel_name = channel_name
                 existing.status = status
                 existing.deleted_at = None
+                if owned_guild_ids:
+                    existing.owned_guild_ids = owned_guild_ids
 
                 await db.commit()
                 await db.refresh(existing)
@@ -58,7 +61,8 @@ class DiscordService:
                 guild_name=guild_name,
                 channel_id=channel_id,
                 channel_name=channel_name,
-                status=status
+                status=status,
+                owned_guild_ids=owned_guild_ids
             )
 
             db.add(discord_integration)
@@ -265,6 +269,39 @@ class DiscordService:
             channel_name=channel_name,
             status=DiscordStatus.ENABLED
         )
+
+    @staticmethod
+    async def get_dm_integration_with_owned_guilds(db: AsyncSession, user_id: str) -> Optional[Discord]:
+        """Get user's DM integration that has owned guild IDs stored."""
+        try:
+            result = await db.execute(
+                select(Discord).where(
+                    Discord.user_id == user_id,
+                    Discord.guild_id.is_(None),  # DM integrations have no guild
+                    Discord.deleted_at.is_(None),
+                    Discord.owned_guild_ids.isnot(None)
+                ).order_by(Discord.created_at.desc())
+            )
+            return result.scalar_one_or_none()
+        except SQLAlchemyError as e:
+            logger.error(f"Database error getting DM integration with owned guilds: {e}")
+            return None
+
+    @staticmethod
+    async def get_dm_integration(db: AsyncSession, user_id: str) -> Optional[Discord]:
+        """Get user's DM integration (any, with or without owned guilds)."""
+        try:
+            result = await db.execute(
+                select(Discord).where(
+                    Discord.user_id == user_id,
+                    Discord.guild_id.is_(None),  # DM integrations have no guild
+                    Discord.deleted_at.is_(None)
+                ).order_by(Discord.created_at.desc())
+            )
+            return result.scalar_one_or_none()
+        except SQLAlchemyError as e:
+            logger.error(f"Database error getting DM integration: {e}")
+            return None
 
 
 # Global instance

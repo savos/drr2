@@ -2,13 +2,15 @@ import { useState, useEffect } from 'react';
 import { authenticatedFetch } from '../utils/api';
 import './GuildSelectionModal.css';
 
-function GuildSelectionModal({ show, onClose, onSubmit }) {
+function GuildSelectionModal({ show, onClose, onSubmit, onReconnect }) {
   const [guilds, setGuilds] = useState([]);
   const [expandedGuildIds, setExpandedGuildIds] = useState(new Set());
   const [selectedChannels, setSelectedChannels] = useState(new Map()); // Map<channelId, {guildId, guildName, channelId, channelName}>
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
+  const [infoMessage, setInfoMessage] = useState(null);
+  const [needsReconnect, setNeedsReconnect] = useState(false);
 
   useEffect(() => {
     if (show) {
@@ -22,12 +24,23 @@ function GuildSelectionModal({ show, onClose, onSubmit }) {
     try {
       setLoading(true);
       setError(null);
+      setInfoMessage(null);
+      setNeedsReconnect(false);
 
       const response = await authenticatedFetch('/api/discord/available-guilds');
 
       if (response.ok) {
         const data = await response.json();
         setGuilds(data.guilds || []);
+
+        // Handle special error/message responses
+        if (data.error === 'no_token' || data.error === 'token_expired' ||
+            data.error === 'no_owned_guilds' || data.error === 'no_integration') {
+          setNeedsReconnect(true);
+          setInfoMessage(data.message);
+        } else if (data.message && data.guilds?.length === 0) {
+          setInfoMessage(data.message);
+        }
       } else {
         setError('Failed to load available servers');
       }
@@ -154,17 +167,30 @@ function GuildSelectionModal({ show, onClose, onSubmit }) {
                 Retry
               </button>
             </div>
+          ) : needsReconnect ? (
+            <div className="modal-empty">
+              <p>{infoMessage || 'Your Discord authorization needs to be refreshed.'}</p>
+              <button
+                className="btn btn-primary"
+                onClick={() => {
+                  onClose();
+                  if (onReconnect) onReconnect();
+                }}
+              >
+                Reconnect Discord
+              </button>
+            </div>
           ) : guilds.length === 0 ? (
             <div className="modal-empty">
-              <p>No available servers found.</p>
+              <p>{infoMessage || 'No available servers found.'}</p>
               <p className="hint-text">
-                Make sure the DRR bot is added to your Discord servers.
+                Only servers you own will appear here. Make sure the DRR bot is added to your servers.
               </p>
             </div>
           ) : (
             <>
               <p className="modal-description">
-                Click on a server to expand and select individual channels to integrate.
+                Select channels from servers you own. Click a server to expand and select individual channels.
               </p>
               <div className="guilds-list">
                 {guilds.map((guild) => {
