@@ -3,6 +3,7 @@ import os
 import logging
 from typing import Optional, Dict, Any
 import httpx
+from urllib.parse import urlencode
 
 logger = logging.getLogger(__name__)
 
@@ -35,19 +36,24 @@ class DiscordConsumer:
     def get_oauth_url(self, state: str) -> str:
         """Get Discord OAuth2 authorization URL."""
         # Include bot scope so Discord shows the server selection during OAuth.
-        scopes = "identify guilds bot"
+        scopes = ["identify", "guilds", "bot", "applications.commands"]
         # View Audit Log (128) + View Channels (1024) + Send Messages (2048) + Embed Links (16384)
         # + Read Message History (65536) + Send Messages in Threads (1048576)
         permissions = 128 + 1024 + 2048 + 16384 + 65536 + 1048576  # 1,133,696
-        return (
-            f"https://discord.com/api/oauth2/authorize"
-            f"?client_id={self.client_id}"
-            f"&redirect_uri={self.redirect_uri}"
-            f"&response_type=code"
-            f"&scope={scopes}"
-            f"&permissions={permissions}"
-            f"&state={state}"
+        query = urlencode(
+            {
+                "client_id": self.client_id,
+                "redirect_uri": self.redirect_uri,
+                "response_type": "code",
+                "scope": " ".join(scopes),
+                "permissions": str(permissions),
+                "state": state,
+                "prompt": "consent",
+                "disable_guild_select": "false",
+                "integration_type": "0",
+            }
         )
+        return f"https://discord.com/api/oauth2/authorize?{query}"
 
     async def exchange_code_for_token(self, code: str) -> Dict[str, Any]:
         """Exchange OAuth2 authorization code for access token."""
