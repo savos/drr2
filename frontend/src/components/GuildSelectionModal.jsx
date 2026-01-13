@@ -35,7 +35,7 @@ function GuildSelectionModal({ show, onClose, onSubmit, onReconnect }) {
 
         // Handle special error/message responses
         if (data.error === 'no_token' || data.error === 'token_expired' ||
-            data.error === 'no_owned_guilds' || data.error === 'no_integration') {
+            data.error === 'no_guilds' || data.error === 'no_integration') {
           setNeedsReconnect(true);
           setInfoMessage(data.message);
         } else if (data.message && data.guilds?.length === 0) {
@@ -184,13 +184,13 @@ function GuildSelectionModal({ show, onClose, onSubmit, onReconnect }) {
             <div className="modal-empty">
               <p>{infoMessage || 'No available servers found.'}</p>
               <p className="hint-text">
-                Only servers you own will appear here. Make sure the DRR bot is added to your servers.
+                Make sure the DRR bot is added to servers you have access to.
               </p>
             </div>
           ) : (
             <>
               <p className="modal-description">
-                Select channels from servers you own. Click a server to expand and select individual channels.
+                Select channels from your Discord servers. Click a server to expand and select individual channels.
               </p>
               <div className="guilds-list">
                 {guilds.map((guild) => {

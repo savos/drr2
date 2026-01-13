@@ -157,17 +157,20 @@ async def oauth_callback(
             frontend_url = os.getenv("FRONTEND_URL", "http://localhost:3000")
             return RedirectResponse(url=f"{frontend_url}/dashboard/channels/discord?error=missing_data")
 
-        # Fetch user's owned guilds using their access token (then discard token)
-        owned_guild_ids_str = None
+        # Fetch ALL user's guilds using their access token (then discard token)
+        # Store all guild IDs so we can show servers user has joined (not just owned)
+        user_guild_ids_str = None
         try:
             user_guilds = await discord_consumer.get_user_guilds(access_token)
-            owned_guild_ids = [
+            # Store ALL guilds user is in (created or joined)
+            all_guild_ids = [
                 guild.get("id") for guild in user_guilds
-                if guild.get("owner") is True and guild.get("id")
+                if guild.get("id")
             ]
-            if owned_guild_ids:
-                owned_guild_ids_str = ",".join(owned_guild_ids)
-            logger.info(f"User {user_id} owns {len(owned_guild_ids)} guilds")
+            if all_guild_ids:
+                user_guild_ids_str = ",".join(all_guild_ids)
+            owned_count = sum(1 for g in user_guilds if g.get("owner"))
+            logger.info(f"User {user_id} is in {len(all_guild_ids)} guilds ({owned_count} owned)")
         except DiscordAPIError as e:
             logger.warning(f"Failed to fetch user guilds (continuing without): {e}")
         # Access token is intentionally NOT stored for security
@@ -194,7 +197,7 @@ async def oauth_callback(
                 channel_id=dm_channel_id,
                 channel_name=None,
                 status=DiscordStatus.ENABLED,
-                owned_guild_ids=owned_guild_ids_str
+                owned_guild_ids=user_guild_ids_str  # stores ALL user guilds despite field name
             )
 
             logger.info(f"Discord DM integration created for user {user_id}")
@@ -723,16 +726,16 @@ async def get_available_guilds(
     db: AsyncSession = Depends(get_db)
 ):
     """
-    Get list of Discord guilds with their channels where the user is owner AND bot has access.
+    Get list of Discord guilds with their channels where the user is a member AND bot has access.
 
-    Returns only guilds that the user owns (created) and where the bot is present.
+    Returns guilds that the user has joined (created or joined) and where the bot is present.
     Shows all text/announcement channels the bot can see in those guilds.
 
-    Security: No user credentials are stored. Owned guild IDs are captured during OAuth
+    Security: No user credentials are stored. Guild IDs are captured during OAuth
     and stored as a simple ID list (no tokens).
     """
     try:
-        # Get user's DM integration with stored owned guild IDs
+        # Get user's DM integration with stored guild IDs
         dm_integration = await discord_service.get_dm_integration(db, current_user.id)
 
         if not dm_integration:
@@ -743,22 +746,22 @@ async def get_available_guilds(
                 "message": "Please connect Discord first."
             }
 
-        # Parse stored owned guild IDs (comma-separated)
+        # Parse stored guild IDs (comma-separated) - field named owned_guild_ids but stores ALL guilds
         if not dm_integration.owned_guild_ids:
-            logger.info(f"User {current_user.id} has no owned guilds stored - need to reconnect")
+            logger.info(f"User {current_user.id} has no guilds stored - need to reconnect")
             return {
                 "guilds": [],
-                "error": "no_owned_guilds",
+                "error": "no_guilds",
                 "message": "Please reconnect Discord to refresh your server list."
             }
 
-        user_owned_guild_ids = set(dm_integration.owned_guild_ids.split(","))
-        logger.info(f"User {current_user.id} owns {len(user_owned_guild_ids)} guilds (from stored data)")
+        user_guild_ids = set(dm_integration.owned_guild_ids.split(","))
+        logger.info(f"User {current_user.id} is in {len(user_guild_ids)} guilds (from stored data)")
 
-        if not user_owned_guild_ids:
+        if not user_guild_ids:
             return {
                 "guilds": [],
-                "message": "You don't own any Discord servers. Create a server first, then invite the bot."
+                "message": "You're not in any Discord servers. Join a server first, then invite the bot."
             }
 
         # Get all guilds where bot has access
@@ -766,9 +769,9 @@ async def get_available_guilds(
         bot_guild_map = {guild.get("id"): guild for guild in bot_guilds}
         logger.info(f"Bot is in {len(bot_guilds)} guilds")
 
-        # Find intersection: user-owned guilds where bot is also present
-        available_guild_ids = user_owned_guild_ids & set(bot_guild_map.keys())
-        logger.info(f"Intersection (user-owned AND bot present): {len(available_guild_ids)} guilds")
+        # Find intersection: user's guilds where bot is also present
+        available_guild_ids = user_guild_ids & set(bot_guild_map.keys())
+        logger.info(f"Intersection (user member AND bot present): {len(available_guild_ids)} guilds")
 
         # Get user's existing integrations
         user_integrations = await discord_service.get_by_user(db, current_user.id)
@@ -825,14 +828,14 @@ async def get_available_guilds(
                 logger.warning(f"Failed to get channels for guild {guild_id}: {e}")
                 continue
 
-        # If user owns guilds but bot isn't in any of them, provide guidance
-        if not available_guilds and user_owned_guild_ids:
+        # If user is in guilds but bot isn't in any of them, provide guidance
+        if not available_guilds and user_guild_ids:
             return {
                 "guilds": [],
-                "message": "The bot isn't installed in any of your servers yet. Use the 'Add Bot to Server' button to invite the bot."
+                "message": "The bot isn't installed in any of your servers yet. Use the 'Add Bot to Server' button to invite the bot to a server you have access to."
             }
 
-        logger.info(f"User {current_user.id} has {len(available_guilds)} owned guilds with available channels")
+        logger.info(f"User {current_user.id} has {len(available_guilds)} guilds with available channels")
         return {"guilds": available_guilds}
 
     except DiscordAPIError as e:

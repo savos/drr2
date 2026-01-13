@@ -268,7 +268,7 @@ function Discord() {
             <div className="step-number">1</div>
             <div className="step-content">
               <h3>Add Bot to Your Server</h3>
-              <p>Use the bot invite link to add DRR to a Discord server <strong>you own</strong>. Only servers you created will be available for integration.</p>
+              <p>Use the bot invite link to add DRR to a Discord server you have access to. Servers you've created or joined will be available for integration.</p>
             </div>
           </div>
 
@@ -276,7 +276,7 @@ function Discord() {
             <div className="step-number">2</div>
             <div className="step-content">
               <h3>Select Channels</h3>
-              <p>Choose which channels should receive domain expiration notifications. The bot can see both public and private channels in servers you own.</p>
+              <p>Choose which channels should receive domain expiration notifications. The bot can see channels it has access to in your servers.</p>
             </div>
           </div>
 
