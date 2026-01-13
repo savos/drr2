@@ -96,4 +96,55 @@
   .under-development-title { @apply text-3xl font-bold mb-2; }
   .under-development-subtitle { @apply text-zinc-600 mb-1; }
   .under-development-coming-soon { @apply text-indigo-600 font-semibold; }
+
+  /* Login / Sign In Page */
+  .login-container { @apply min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-50 via-white to-zinc-100 p-4; }
+  .login-card { @apply bg-white rounded-2xl shadow-xl p-8 w-full max-w-md border border-zinc-200; }
+  .login-card h1 { @apply text-2xl font-bold text-zinc-900 text-center mb-2; }
+  .login-subtitle { @apply text-zinc-500 text-center mb-6; }
+  .login-form { @apply space-y-5; }
+  .login-footer { @apply mt-6 pt-6 border-t border-zinc-200 text-center text-sm text-zinc-600; }
+  .login-footer .link { @apply text-indigo-600 font-semibold hover:text-indigo-700 no-underline; }
+
+  /* Auth / Sign Up Page */
+  .auth-container { @apply min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-50 via-white to-zinc-100 p-4 py-12; }
+  .auth-card { @apply bg-white rounded-2xl shadow-xl p-8 w-full max-w-lg border border-zinc-200; }
+  .auth-card h1 { @apply text-2xl font-bold text-zinc-900 text-center mb-2; }
+  .auth-subtitle { @apply text-zinc-500 text-center mb-6; }
+  .auth-form { @apply space-y-5; }
+
+  /* Form elements */
+  .form-group { @apply flex flex-col; }
+  .form-group label { @apply text-sm font-medium text-zinc-700 mb-1.5; }
+  .form-group input { @apply px-4 py-3 border border-zinc-300 rounded-lg text-base transition-all duration-200 outline-none; }
+  .form-group input:focus { @apply border-indigo-500 ring-2 ring-indigo-100; }
+  .form-group input.valid { @apply border-emerald-500 bg-emerald-50; }
+  .form-group input.invalid { @apply border-red-500 bg-red-50; }
+  .form-row { @apply grid grid-cols-1 sm:grid-cols-2 gap-4; }
+  .form-actions { @apply flex gap-4 pt-4; }
+  .form-actions .btn { @apply flex-1; }
+
+  /* Error message */
+  .error-message { @apply bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-3 mb-4 text-sm; }
+
+  /* Validation messages */
+  .validation-message { @apply text-xs mt-1.5 font-medium; }
+  .validation-message.success { @apply text-emerald-600; }
+  .validation-message.error { @apply text-red-600; }
+
+  /* Password strength */
+  .password-strength-container { @apply mt-2 min-h-[100px]; }
+  .strength-bar { @apply h-2 bg-zinc-200 rounded-full overflow-hidden mb-3; }
+  .strength-bar .strength-fill { @apply h-full transition-all duration-300; }
+  .strength-bar.strength-weak .strength-fill { @apply w-1/3 bg-red-500; }
+  .strength-bar.strength-medium .strength-fill { @apply w-2/3 bg-amber-500; }
+  .strength-bar.strength-strong .strength-fill { @apply w-full bg-emerald-500; }
+  .strength-checklist { @apply space-y-1 text-xs; }
+  .strength-checklist .check-passed { @apply text-emerald-600; }
+  .strength-checklist .check-failed { @apply text-zinc-400; }
+  .strength-placeholder { @apply text-xs text-zinc-400 italic; }
+
+  /* Password match */
+  .password-match-container { @apply mt-2 min-h-[24px]; }
+  .match-placeholder { @apply text-xs text-zinc-400 italic; }
 }
