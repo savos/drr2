@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { authenticatedFetch } from '../utils/api';
+import SlackChannelSelectionModal from '../components/SlackChannelSelectionModal';
 // Tailwind component mappings in index.css replace the old CSS file
 
 function Slack() {
@@ -11,11 +12,15 @@ function Slack() {
   const [testingConnection, setTestingConnection] = useState(null);
   const [error, setError] = useState(null);
   const [successMessage, setSuccessMessage] = useState(null);
+  const [showChannelModal, setShowChannelModal] = useState(false);
+  const [selectedWorkspaceId, setSelectedWorkspaceId] = useState('');
 
   // Check for OAuth callback status
   useEffect(() => {
     const success = searchParams.get('success');
     const errorParam = searchParams.get('error');
+    const showChannelSelection = searchParams.get('show_channel_selection');
+    const workspaceId = searchParams.get('workspace_id');
 
     // Frontend-only verification: if Slack DM link returned a `verified` token that
     // matches what we generated for a given integration_id, mark it Active via API.
@@ -49,7 +54,13 @@ function Slack() {
     };
 
     if (success === 'true') {
-      setSuccessMessage('✅ Slack workspace connected successfully!');
+      if (showChannelSelection === 'true') {
+        setSelectedWorkspaceId(workspaceId || '');
+        setShowChannelModal(true);
+        setSuccessMessage('Slack workspace connected! Select channels to connect.');
+      } else {
+        setSuccessMessage('Slack workspace connected successfully!');
+      }
       // Reload integrations
       loadIntegrations();
       // Clear query string (keep UX tidy)
@@ -165,6 +176,16 @@ function Slack() {
     }
   };
 
+  const handleChannelModalClose = () => {
+    setShowChannelModal(false);
+  };
+
+  const handleChannelModalSubmit = (result) => {
+    setShowChannelModal(false);
+    setSuccessMessage(`Added ${result.added_count} Slack channels.`);
+    loadIntegrations();
+  };
+
   const handleDeleteIntegration = async (integrationId) => {
     if (!confirm('Are you sure you want to disconnect this Slack workspace?')) {
       return;
@@ -246,13 +267,21 @@ function Slack() {
           <div className="instruction-step">
             <div className="step-number">3</div>
             <div className="step-content">
+              <h3>Select Channels</h3>
+              <p>After connecting, you will be prompted to select channels you created. The bot must already be in those channels.</p>
+            </div>
+          </div>
+
+          <div className="instruction-step">
+            <div className="step-number">4</div>
+            <div className="step-content">
               <h3>Test Your Connection</h3>
               <p>After connecting, use the "Test Connection" button to verify everything is working. You should receive a test message in your Slack DMs.</p>
             </div>
           </div>
 
           <div className="instruction-step">
-            <div className="step-number">4</div>
+            <div className="step-number">5</div>
             <div className="step-content">
               <h3>Receive Notifications</h3>
               <p>You'll automatically receive Slack notifications when your domains or SSL certificates are about to expire.</p>
@@ -364,6 +393,13 @@ function Slack() {
           </div>
         )}
       </div>
+
+      <SlackChannelSelectionModal
+        show={showChannelModal}
+        onClose={handleChannelModalClose}
+        onSubmit={handleChannelModalSubmit}
+        workspaceId={selectedWorkspaceId}
+      />
     </div>
   );
 }

@@ -22,6 +22,7 @@ class SlackService:
         access_token: str,
         bot_user_id: Optional[str],
         slack_user_id: Optional[str],
+        user_token: Optional[str],
         channel_id: str,
         channel_name: Optional[str] = None,
         status: SlackStatus = SlackStatus.ENABLED
@@ -59,6 +60,8 @@ class SlackService:
                 existing.bot_token = access_token
                 existing.bot_user_id = bot_user_id
                 existing.slack_user_id = slack_user_id
+                if user_token:
+                    existing.user_token = user_token
                 existing.channel_name = channel_name
                 existing.status = status
                 existing.deleted_at = None  # Reactivate if it was soft-deleted
@@ -76,6 +79,7 @@ class SlackService:
                 bot_token=access_token,
                 bot_user_id=bot_user_id,
                 slack_user_id=slack_user_id,
+                user_token=user_token,
                 channel_id=channel_id,
                 channel_name=channel_name,
                 status=status
@@ -209,6 +213,28 @@ class SlackService:
             return []
 
     @staticmethod
+    async def get_dm_integration(
+        db: AsyncSession,
+        user_id: str,
+        workspace_id: Optional[str] = None
+    ) -> Optional[Slack]:
+        """Get the most recent DM integration for a user (optionally by workspace)."""
+        try:
+            query = select(Slack).where(
+                Slack.user_id == user_id,
+                Slack.channel_id == Slack.slack_user_id,
+                Slack.deleted_at.is_(None)
+            )
+            if workspace_id:
+                query = query.where(Slack.workspace_id == workspace_id)
+
+            result = await db.execute(query.order_by(Slack.created_at.desc()))
+            return result.scalar_one_or_none()
+        except SQLAlchemyError as e:
+            logger.error(f"Database error getting Slack DM integration: {e}")
+            return None
+
+    @staticmethod
     async def update_status(
         db: AsyncSession,
         integration_id: int,
@@ -295,6 +321,7 @@ class SlackService:
             access_token=workspace_integration.bot_token,
             bot_user_id=workspace_integration.bot_user_id,
             slack_user_id=workspace_integration.slack_user_id,
+            user_token=workspace_integration.user_token,
             channel_id=channel_id,
             channel_name=channel_name,
             status=SlackStatus.ENABLED

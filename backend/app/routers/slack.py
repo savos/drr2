@@ -135,6 +135,7 @@ async def oauth_callback(
         workspace_id = team.get("id")
         workspace_name = team.get("name")
         slack_user_id = authed_user.get("id")
+        user_token = authed_user.get("access_token")
 
         if not all([access_token, workspace_id]):
             logger.error("Missing required OAuth data")
@@ -154,6 +155,7 @@ async def oauth_callback(
                 access_token=access_token,
                 bot_user_id=bot_user_id,
                 slack_user_id=slack_user_id,
+                user_token=user_token,
                 channel_id=slack_user_id,  # DM channel ID is the user's ID
                 channel_name=None,  # NULL for DMs
                 status=SlackStatus.ENABLED
@@ -161,39 +163,9 @@ async def oauth_callback(
 
             logger.info(f"Slack DM integration created for user {user_id}, workspace {workspace_id}")
 
-            # Fetch all channels the bot is already a member of
-            channels_added = 0
-            if bot_user_id:
-                try:
-                    bot_channels = await slack_consumer.get_bot_channels(access_token, bot_user_id)
-                    logger.info(f"Bot is member of {len(bot_channels)} channels in workspace {workspace_id}")
-
-                    # Create integrations for each channel
-                    for channel in bot_channels:
-                        channel_id = channel.get("id")
-                        channel_name = channel.get("name") or channel.get("name_normalized")
-
-                        if channel_id:
-                            try:
-                                await slack_service.create_channel_integration(
-                                    db=db,
-                                    workspace_integration=dm_integration,
-                                    channel_id=channel_id,
-                                    channel_name=channel_name
-                                )
-                                channels_added += 1
-                                logger.info(f"Added channel {channel_id} ({channel_name}) for user {user_id}")
-                            except Exception as e:
-                                logger.warning(f"Failed to add channel {channel_id}: {e}")
-
-                    logger.info(f"Added {channels_added} existing channels for user {user_id}")
-
-                except Exception as e:
-                    logger.warning(f"Failed to fetch bot channels, continuing anyway: {e}")
-
             frontend_url = os.getenv("FRONTEND_URL", "http://localhost:3000")
             return RedirectResponse(
-                url=f"{frontend_url}/dashboard/channels/slack?success=true"
+                url=f"{frontend_url}/dashboard/channels/slack?success=true&show_channel_selection=true&workspace_id={workspace_id}"
             )
 
         except Exception as e:
@@ -208,6 +180,166 @@ async def oauth_callback(
         frontend_url = os.getenv("FRONTEND_URL", "http://localhost:3000")
         return RedirectResponse(
             url=f"{frontend_url}/dashboard/channels/slack?error=unexpected_error"
+        )
+
+
+class SlackChannelSelection(BaseModel):
+    """Selected Slack channel info."""
+    channel_id: str
+    channel_name: Optional[str] = None
+
+
+class SlackAddChannelsRequest(BaseModel):
+    """Request to add selected Slack channels."""
+    workspace_id: str
+    channels: list[SlackChannelSelection]
+
+
+@router.get("/available-channels")
+async def get_available_channels(
+    workspace_id: Optional[str] = Query(None, description="Slack workspace ID"),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Get Slack channels created by the user that the bot can access.
+
+    Uses the Slack user token to list channels and filters by creator.
+    Intersects with bot-visible channels to ensure the bot can post.
+    """
+    try:
+        dm_integration = await slack_service.get_dm_integration(db, current_user.id, workspace_id)
+        if not dm_integration:
+            return {
+                "channels": [],
+                "error": "no_integration",
+                "message": "Please connect Slack first."
+            }
+
+        if not dm_integration.user_token or not dm_integration.slack_user_id:
+            return {
+                "channels": [],
+                "error": "no_user_token",
+                "message": "Please reconnect Slack to refresh your permissions."
+            }
+
+        # Channels created by the user (via user token)
+        user_channels = await slack_consumer.get_user_channels(dm_integration.user_token)
+        created_channel_ids = {
+            ch.get("id")
+            for ch in user_channels
+            if ch.get("id") and ch.get("creator") == dm_integration.slack_user_id
+        }
+
+        if not created_channel_ids:
+            return {
+                "channels": [],
+                "error": "no_created_channels",
+                "message": "No channels created by you were found in this workspace."
+            }
+
+        # Channels the bot can access
+        bot_channels = []
+        if dm_integration.bot_user_id:
+            bot_channels = await slack_consumer.get_bot_channels(
+                dm_integration.bot_token,
+                dm_integration.bot_user_id
+            )
+
+        bot_channel_map = {
+            ch.get("id"): ch
+            for ch in bot_channels
+            if ch.get("id")
+        }
+
+        available = []
+        for channel_id in created_channel_ids:
+            channel = bot_channel_map.get(channel_id)
+            if not channel:
+                continue
+            name = channel.get("name") or channel.get("name_normalized")
+            if not name:
+                continue
+            available.append({
+                "id": channel_id,
+                "name": name,
+                "is_private": bool(channel.get("is_private")),
+            })
+
+        if not available:
+            return {
+                "channels": [],
+                "error": "bot_not_installed",
+                "message": "The DRR bot is not a member of your created channels. Invite the bot to those channels and try again."
+            }
+
+        return {
+            "workspace_id": dm_integration.workspace_id,
+            "workspace_name": dm_integration.workspace_name,
+            "channels": available
+        }
+
+    except SlackAPIError as e:
+        logger.error(f"Failed to get available Slack channels: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to retrieve Slack channels"
+        )
+    except Exception as e:
+        logger.error(f"Unexpected error getting Slack channels: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to retrieve Slack channels"
+        )
+
+
+@router.post("/add-channels")
+async def add_selected_channels(
+    request: SlackAddChannelsRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Add selected Slack channels to user's integrations.
+    """
+    try:
+        dm_integration = await slack_service.get_dm_integration(db, current_user.id, request.workspace_id)
+        if not dm_integration:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No Slack workspace integration found. Please connect Slack first."
+            )
+
+        added_count = 0
+        failed_channels = []
+
+        for channel in request.channels:
+            try:
+                await slack_service.create_channel_integration(
+                    db=db,
+                    workspace_integration=dm_integration,
+                    channel_id=channel.channel_id,
+                    channel_name=channel.channel_name
+                )
+                added_count += 1
+            except Exception as e:
+                logger.error(f"Failed to add Slack channel {channel.channel_id}: {e}")
+                failed_channels.append(channel.channel_id)
+
+        return {
+            "success": True,
+            "message": f"Added {added_count} channel integrations",
+            "added_count": added_count,
+            "failed_channels": failed_channels
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error adding selected Slack channels: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to add selected channels"
         )
 
 

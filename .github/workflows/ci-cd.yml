@@ -154,3 +154,18 @@ jobs:
             cd ${{ secrets.DEPLOY_PATH }}
             git pull origin production
             ./deploy/deploy.sh
+            echo "Waiting for backend health..."
+            for i in {1..15}; do
+              if docker ps --filter "name=app-backend" --filter "health=healthy" --format "{{.Names}}" | grep -q "app-backend"; then
+                echo "Backend is healthy."
+                break
+              fi
+              if [ "$i" -eq 15 ]; then
+                echo "Backend did not become healthy in time." >&2
+                docker ps --filter "name=app-backend" --format "{{.Names}} {{.Status}}"
+                exit 1
+              fi
+              sleep 2
+            done
+            docker exec app-backend bash -c "cd /backend/app && python -m alembic upgrade head"
+            docker exec app-backend bash -c "cd /backend/app && python -m alembic current"
