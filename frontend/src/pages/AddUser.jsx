@@ -1,8 +1,6 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 
 function AddUser() {
-  const navigate = useNavigate();
   const [formData, setFormData] = useState({
     firstname: '',
     lastname: '',
@@ -13,6 +11,7 @@ function AddUser() {
   });
   const [isSuperuser, setIsSuperuser] = useState(false);
   const [editingUserId, setEditingUserId] = useState(null);
+  const [showModal, setShowModal] = useState(false);
 
   const [emailValid, setEmailValid] = useState(null);
   const [passwordStrength, setPasswordStrength] = useState({
@@ -205,7 +204,13 @@ function AddUser() {
     setError('');
   };
 
-  // Handle edit button click
+  // Open modal for adding new user
+  const openAddModal = () => {
+    resetForm();
+    setShowModal(true);
+  };
+
+  // Open modal for editing user
   const handleEdit = (user) => {
     setFormData({
       firstname: user.firstname,
@@ -220,9 +225,13 @@ function AddUser() {
     setEmailValid(true);
     setError('');
     setSuccess('');
+    setShowModal(true);
+  };
 
-    // Scroll to form
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+  // Close modal
+  const closeModal = () => {
+    setShowModal(false);
+    resetForm();
   };
 
   // Handle delete button click
@@ -317,7 +326,7 @@ function AddUser() {
         }
 
         setSuccess('User updated successfully!');
-        resetForm();
+        closeModal();
         fetchUsers();
       } else {
         // Create new user
@@ -361,22 +370,13 @@ function AddUser() {
         }
 
         setSuccess('User added successfully!');
-        resetForm();
+        closeModal();
         fetchUsers();
       }
     } catch (err) {
       setError(err.message || 'Operation failed. Please try again.');
     } finally {
       setLoading(false);
-    }
-  };
-
-  // Handle cancel
-  const handleCancel = () => {
-    if (editingUserId) {
-      resetForm();
-    } else {
-      navigate(-1);
     }
   };
 
@@ -402,13 +402,11 @@ function AddUser() {
   return (
     <div className="teams-page">
       <div className="page-header">
-        <h1>{editingUserId ? 'Edit User' : 'Add New User'}</h1>
-        <p className="subtitle">
-          {editingUserId ? 'Update user information' : 'Create a new user account for your company'}
-        </p>
+        <h1>User Management</h1>
+        <p className="subtitle">Manage users in your company</p>
       </div>
 
-      {error && (
+      {error && !showModal && (
         <div className="alert alert-error">
           <span className="alert-icon">!</span>
           <span>{error}</span>
@@ -424,194 +422,14 @@ function AddUser() {
         </div>
       )}
 
-      {/* User Form */}
-      <div className="setup-section">
-        <h2>{editingUserId ? 'Edit User' : 'User Information'}</h2>
-        <form onSubmit={handleSubmit}>
-          <div className="form-row">
-            <div className="form-group">
-              <label htmlFor="firstname">First Name *</label>
-              <input
-                type="text"
-                id="firstname"
-                name="firstname"
-                value={formData.firstname}
-                onChange={handleChange}
-                required
-                maxLength={64}
-              />
-            </div>
-
-            <div className="form-group">
-              <label htmlFor="lastname">Last Name *</label>
-              <input
-                type="text"
-                id="lastname"
-                name="lastname"
-                value={formData.lastname}
-                onChange={handleChange}
-                required
-                maxLength={64}
-              />
-            </div>
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="position">Position (Optional)</label>
-            <input
-              type="text"
-              id="position"
-              name="position"
-              value={formData.position}
-              onChange={handleChange}
-              maxLength={64}
-            />
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="email">Email *</label>
-            <input
-              type="email"
-              id="email"
-              name="email"
-              value={formData.email}
-              onChange={handleChange}
-              required
-              maxLength={64}
-              className={emailValid === false ? 'invalid' : emailValid === true ? 'valid' : ''}
-            />
-            {emailValid === false && (
-              <div className="validation-message error">
-                Invalid email format. Use: yourname@example.com
-              </div>
-            )}
-            {emailValid === true && (
-              <div className="validation-message success">
-                Valid email format
-              </div>
-            )}
-          </div>
-
-          <div className="form-group" style={{ marginBottom: '1.5rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <input
-                type="checkbox"
-                id="isSuperuser"
-                checked={isSuperuser}
-                onChange={(e) => setIsSuperuser(e.target.checked)}
-                style={{ width: 'auto', cursor: 'pointer' }}
-              />
-              <label htmlFor="isSuperuser" style={{ margin: 0, cursor: 'pointer', fontWeight: '600' }}>
-                This user is superuser
-              </label>
-            </div>
-            <div style={{
-              fontSize: '0.875rem',
-              color: '#666',
-              marginTop: '0.5rem',
-              marginLeft: '30px'
-            }}>
-              Superuser can add users, SSLs and domains
-            </div>
-          </div>
-
-          {!editingUserId && (
-            <>
-              <div className="form-group">
-                <label htmlFor="password">Password *</label>
-                <input
-                  type="password"
-                  id="password"
-                  name="password"
-                  value={formData.password}
-                  onChange={handleChange}
-                  required={!editingUserId}
-                  minLength={8}
-                />
-                <div className="password-strength-container">
-                  {formData.password && (
-                    <>
-                      <div className={`strength-bar strength-${passwordStrength.strength}`}>
-                        <div className="strength-fill"></div>
-                      </div>
-                      <div className="strength-checklist">
-                        <div className={passwordStrength.checks.length ? 'check-passed' : 'check-failed'}>
-                          {passwordStrength.checks.length ? '\u2713' : '\u25CB'} At least 8 characters
-                        </div>
-                        <div className={passwordStrength.checks.uppercase ? 'check-passed' : 'check-failed'}>
-                          {passwordStrength.checks.uppercase ? '\u2713' : '\u25CB'} One uppercase letter
-                        </div>
-                        <div className={passwordStrength.checks.lowercase ? 'check-passed' : 'check-failed'}>
-                          {passwordStrength.checks.lowercase ? '\u2713' : '\u25CB'} One lowercase letter
-                        </div>
-                        <div className={passwordStrength.checks.number ? 'check-passed' : 'check-failed'}>
-                          {passwordStrength.checks.number ? '\u2713' : '\u25CB'} One number
-                        </div>
-                        <div className={passwordStrength.checks.special ? 'check-passed' : 'check-failed'}>
-                          {passwordStrength.checks.special ? '\u2713' : '\u25CB'} One special character
-                        </div>
-                      </div>
-                    </>
-                  )}
-                  {!formData.password && (
-                    <div className="strength-placeholder">
-                      Password strength will be displayed here
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <div className="form-group">
-                <label htmlFor="repeatPassword">Repeat Password *</label>
-                <input
-                  type="password"
-                  id="repeatPassword"
-                  name="repeatPassword"
-                  value={formData.repeatPassword}
-                  onChange={handleChange}
-                  required={!editingUserId}
-                  minLength={8}
-                  className={passwordsMatch === false ? 'invalid' : passwordsMatch === true ? 'valid' : ''}
-                />
-                <div className="password-match-container">
-                  {formData.repeatPassword && (
-                    <div className={`validation-message ${passwordsMatch ? 'success' : 'error'}`}>
-                      {passwordsMatch ? '\u2713 Passwords match' : '\u2717 Passwords do not match'}
-                    </div>
-                  )}
-                  {!formData.repeatPassword && (
-                    <div className="match-placeholder">
-                      Password match status will be displayed here
-                    </div>
-                  )}
-                </div>
-              </div>
-            </>
-          )}
-
-          <div className="form-actions">
-            <button
-              type="button"
-              onClick={handleCancel}
-              className="btn btn-secondary"
-              disabled={loading}
-            >
-              {editingUserId ? 'Cancel Edit' : 'Cancel'}
-            </button>
-            <button
-              type="submit"
-              className="btn btn-primary"
-              disabled={loading || !isFormValid()}
-            >
-              {loading ? (editingUserId ? 'Updating...' : 'Adding User...') : (editingUserId ? 'Update User' : 'Add User')}
-            </button>
-          </div>
-        </form>
-      </div>
-
       {/* Users Table */}
       <div className="setup-section">
-        <h2>Company Users</h2>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+          <h2 style={{ margin: 0 }}>Company Users</h2>
+          <button onClick={openAddModal} className="btn btn-primary">
+            + Add User
+          </button>
+        </div>
 
         {loadingUsers ? (
           <div className="loading-state">
@@ -621,7 +439,7 @@ function AddUser() {
         ) : users.length === 0 ? (
           <div className="empty-state">
             <div className="empty-icon">&#128100;</div>
-            <p>No users found. Add your first user above.</p>
+            <p>No users found. Click "Add User" to create one.</p>
           </div>
         ) : (
           <div style={{ overflowX: 'auto' }}>
@@ -639,10 +457,7 @@ function AddUser() {
                 {users.map((user) => (
                   <tr
                     key={user.id}
-                    style={{
-                      borderBottom: '1px solid #e5e7eb',
-                      backgroundColor: editingUserId === user.id ? '#f0f9ff' : 'transparent'
-                    }}
+                    style={{ borderBottom: '1px solid #e5e7eb' }}
                   >
                     <td style={{ padding: '12px 8px' }}>
                       {user.firstname} {user.lastname}
@@ -667,7 +482,6 @@ function AddUser() {
                         <button
                           onClick={() => handleEdit(user)}
                           className="btn btn-secondary btn-sm"
-                          disabled={editingUserId === user.id}
                         >
                           Edit
                         </button>
@@ -705,6 +519,243 @@ function AddUser() {
           </div>
         )}
       </div>
+
+      {/* Modal */}
+      {showModal && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+            padding: '1rem'
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) closeModal();
+          }}
+        >
+          <div
+            style={{
+              backgroundColor: 'white',
+              borderRadius: '12px',
+              width: '100%',
+              maxWidth: '500px',
+              maxHeight: '90vh',
+              overflow: 'auto',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)'
+            }}
+          >
+            {/* Modal Header */}
+            <div style={{
+              padding: '1.5rem',
+              borderBottom: '1px solid #e5e7eb',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center'
+            }}>
+              <h2 style={{ margin: 0, fontSize: '1.25rem', fontWeight: '600' }}>
+                {editingUserId ? 'Edit User' : 'Add New User'}
+              </h2>
+              <button
+                onClick={closeModal}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  fontSize: '1.5rem',
+                  cursor: 'pointer',
+                  color: '#6b7280',
+                  lineHeight: 1
+                }}
+              >
+                &times;
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div style={{ padding: '1.5rem' }}>
+              {error && showModal && (
+                <div className="alert alert-error" style={{ marginBottom: '1rem' }}>
+                  <span className="alert-icon">!</span>
+                  <span>{error}</span>
+                  <button className="alert-close" onClick={() => setError('')}>&times;</button>
+                </div>
+              )}
+
+              <form onSubmit={handleSubmit}>
+                <div className="form-row">
+                  <div className="form-group">
+                    <label htmlFor="firstname">First Name *</label>
+                    <input
+                      type="text"
+                      id="firstname"
+                      name="firstname"
+                      value={formData.firstname}
+                      onChange={handleChange}
+                      required
+                      maxLength={64}
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label htmlFor="lastname">Last Name *</label>
+                    <input
+                      type="text"
+                      id="lastname"
+                      name="lastname"
+                      value={formData.lastname}
+                      onChange={handleChange}
+                      required
+                      maxLength={64}
+                    />
+                  </div>
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="position">Position (Optional)</label>
+                  <input
+                    type="text"
+                    id="position"
+                    name="position"
+                    value={formData.position}
+                    onChange={handleChange}
+                    maxLength={64}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="email">Email *</label>
+                  <input
+                    type="email"
+                    id="email"
+                    name="email"
+                    value={formData.email}
+                    onChange={handleChange}
+                    required
+                    maxLength={64}
+                    className={emailValid === false ? 'invalid' : emailValid === true ? 'valid' : ''}
+                  />
+                  {emailValid === false && (
+                    <div className="validation-message error">
+                      Invalid email format. Use: yourname@example.com
+                    </div>
+                  )}
+                </div>
+
+                <div className="form-group" style={{ marginBottom: '1.5rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <input
+                      type="checkbox"
+                      id="isSuperuser"
+                      checked={isSuperuser}
+                      onChange={(e) => setIsSuperuser(e.target.checked)}
+                      style={{ width: 'auto', cursor: 'pointer' }}
+                    />
+                    <label htmlFor="isSuperuser" style={{ margin: 0, cursor: 'pointer', fontWeight: '600' }}>
+                      This user is superuser
+                    </label>
+                  </div>
+                  <div style={{
+                    fontSize: '0.875rem',
+                    color: '#666',
+                    marginTop: '0.5rem',
+                    marginLeft: '30px'
+                  }}>
+                    Superuser can add users, SSLs and domains
+                  </div>
+                </div>
+
+                {!editingUserId && (
+                  <>
+                    <div className="form-group">
+                      <label htmlFor="password">Password *</label>
+                      <input
+                        type="password"
+                        id="password"
+                        name="password"
+                        value={formData.password}
+                        onChange={handleChange}
+                        required={!editingUserId}
+                        minLength={8}
+                      />
+                      <div className="password-strength-container">
+                        {formData.password && (
+                          <>
+                            <div className={`strength-bar strength-${passwordStrength.strength}`}>
+                              <div className="strength-fill"></div>
+                            </div>
+                            <div className="strength-checklist">
+                              <div className={passwordStrength.checks.length ? 'check-passed' : 'check-failed'}>
+                                {passwordStrength.checks.length ? '\u2713' : '\u25CB'} At least 8 characters
+                              </div>
+                              <div className={passwordStrength.checks.uppercase ? 'check-passed' : 'check-failed'}>
+                                {passwordStrength.checks.uppercase ? '\u2713' : '\u25CB'} One uppercase letter
+                              </div>
+                              <div className={passwordStrength.checks.lowercase ? 'check-passed' : 'check-failed'}>
+                                {passwordStrength.checks.lowercase ? '\u2713' : '\u25CB'} One lowercase letter
+                              </div>
+                              <div className={passwordStrength.checks.number ? 'check-passed' : 'check-failed'}>
+                                {passwordStrength.checks.number ? '\u2713' : '\u25CB'} One number
+                              </div>
+                              <div className={passwordStrength.checks.special ? 'check-passed' : 'check-failed'}>
+                                {passwordStrength.checks.special ? '\u2713' : '\u25CB'} One special character
+                              </div>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="form-group">
+                      <label htmlFor="repeatPassword">Repeat Password *</label>
+                      <input
+                        type="password"
+                        id="repeatPassword"
+                        name="repeatPassword"
+                        value={formData.repeatPassword}
+                        onChange={handleChange}
+                        required={!editingUserId}
+                        minLength={8}
+                        className={passwordsMatch === false ? 'invalid' : passwordsMatch === true ? 'valid' : ''}
+                      />
+                      <div className="password-match-container">
+                        {formData.repeatPassword && (
+                          <div className={`validation-message ${passwordsMatch ? 'success' : 'error'}`}>
+                            {passwordsMatch ? '\u2713 Passwords match' : '\u2717 Passwords do not match'}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                <div className="form-actions" style={{ marginTop: '1.5rem' }}>
+                  <button
+                    type="button"
+                    onClick={closeModal}
+                    className="btn btn-secondary"
+                    disabled={loading}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="btn btn-primary"
+                    disabled={loading || !isFormValid()}
+                  >
+                    {loading ? (editingUserId ? 'Updating...' : 'Adding...') : (editingUserId ? 'Update User' : 'Add User')}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
