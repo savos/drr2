@@ -36,6 +36,7 @@ class UserUpdate(BaseModel):
     lastname: str | None = Field(None, max_length=64)
     position: str | None = Field(None, max_length=64)
     email: EmailStr | None = Field(None, max_length=64)
+    is_superuser: bool | None = None
 
     # Notification preferences
     notifications: NotificationStatus | None = None

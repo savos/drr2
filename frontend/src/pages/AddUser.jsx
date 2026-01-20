@@ -1,6 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-// Tailwind component mappings in index.css replace the old CSS file
 
 function AddUser() {
   const navigate = useNavigate();
@@ -13,6 +12,7 @@ function AddUser() {
     repeatPassword: ''
   });
   const [isSuperuser, setIsSuperuser] = useState(false);
+  const [editingUserId, setEditingUserId] = useState(null);
 
   const [emailValid, setEmailValid] = useState(null);
   const [passwordStrength, setPasswordStrength] = useState({
@@ -29,7 +29,40 @@ function AddUser() {
   });
   const [passwordsMatch, setPasswordsMatch] = useState(null);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // Users list state
+  const [users, setUsers] = useState([]);
+  const [loadingUsers, setLoadingUsers] = useState(true);
+  const [deleteConfirm, setDeleteConfirm] = useState(null);
+
+  // Fetch users on mount
+  useEffect(() => {
+    fetchUsers();
+  }, []);
+
+  const fetchUsers = async () => {
+    try {
+      const token = localStorage.getItem('access_token');
+      if (!token) return;
+
+      const response = await fetch('/api/users/', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setUsers(data);
+      }
+    } catch (err) {
+      console.error('Error fetching users:', err);
+    } finally {
+      setLoadingUsers(false);
+    }
+  };
 
   // Email validation
   const validateEmail = (email) => {
@@ -143,26 +176,89 @@ function AddUser() {
     }
   };
 
+  // Reset form to initial state
+  const resetForm = () => {
+    setFormData({
+      firstname: '',
+      lastname: '',
+      position: '',
+      email: '',
+      password: '',
+      repeatPassword: ''
+    });
+    setIsSuperuser(false);
+    setEditingUserId(null);
+    setEmailValid(null);
+    setPasswordStrength({
+      isValid: false,
+      message: '',
+      strength: 'weak',
+      checks: {
+        length: false,
+        uppercase: false,
+        lowercase: false,
+        number: false,
+        special: false
+      }
+    });
+    setPasswordsMatch(null);
+    setError('');
+  };
+
+  // Handle edit button click
+  const handleEdit = (user) => {
+    setFormData({
+      firstname: user.firstname,
+      lastname: user.lastname,
+      position: user.position || '',
+      email: user.email,
+      password: '',
+      repeatPassword: ''
+    });
+    setIsSuperuser(user.is_superuser);
+    setEditingUserId(user.id);
+    setEmailValid(true);
+    setError('');
+    setSuccess('');
+
+    // Scroll to form
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  // Handle delete button click
+  const handleDelete = async (userId) => {
+    try {
+      const token = localStorage.getItem('access_token');
+      const response = await fetch(`/api/users/${userId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setSuccess('User deleted successfully');
+        setDeleteConfirm(null);
+        fetchUsers();
+      } else {
+        setError(data.detail || 'Failed to delete user');
+      }
+    } catch (err) {
+      setError('Error deleting user');
+    }
+  };
+
   // Handle form submission
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    setSuccess('');
 
     // Validate email
     if (!validateEmail(formData.email)) {
       setError('Please enter a valid email address');
-      return;
-    }
-
-    // Validate password strength
-    if (!passwordStrength.isValid) {
-      setError('Please use a stronger password that meets all requirements');
-      return;
-    }
-
-    // Validate passwords match
-    if (!checkPasswordsMatch(formData.password, formData.repeatPassword)) {
-      setError('Passwords do not match');
       return;
     }
 
@@ -172,59 +268,104 @@ function AddUser() {
       return;
     }
 
+    // For new users or if password is provided for edit
+    if (!editingUserId || formData.password) {
+      // Validate password strength
+      if (!passwordStrength.isValid) {
+        setError('Please use a stronger password that meets all requirements');
+        return;
+      }
+
+      // Validate passwords match
+      if (!checkPasswordsMatch(formData.password, formData.repeatPassword)) {
+        setError('Passwords do not match');
+        return;
+      }
+    }
+
     setLoading(true);
 
     try {
-      // Get current user's company_id from localStorage
-      const userStr = localStorage.getItem('user');
-      if (!userStr) {
-        throw new Error('User not authenticated');
-      }
-      const user = JSON.parse(userStr);
-      const companyId = user.company_id;
-
-      if (!companyId) {
-        throw new Error('Company ID not found');
-      }
-
-      // Get access token
       const token = localStorage.getItem('access_token');
       if (!token) {
         throw new Error('Authentication token not found');
       }
 
-      const response = await fetch('/api/users/', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
+      if (editingUserId) {
+        // Update existing user
+        const updateData = {
           firstname: formData.firstname,
           lastname: formData.lastname,
           position: formData.position || null,
           email: formData.email,
-          password: formData.password,
-          company_id: companyId,
-          is_superuser: isSuperuser,
-          notifications: 'disabled',
-          slack: 'disabled',
-          teams: 'disabled',
-          discord: 'disabled',
-          telegram: 'disabled'
-        }),
-      });
+          is_superuser: isSuperuser
+        };
 
-      const data = await response.json();
+        const response = await fetch(`/api/users/${editingUserId}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify(updateData),
+        });
 
-      if (!response.ok) {
-        throw new Error(data.detail || 'User creation failed');
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.detail || 'User update failed');
+        }
+
+        setSuccess('User updated successfully!');
+        resetForm();
+        fetchUsers();
+      } else {
+        // Create new user
+        const userStr = localStorage.getItem('user');
+        if (!userStr) {
+          throw new Error('User not authenticated');
+        }
+        const user = JSON.parse(userStr);
+        const companyId = user.company_id;
+
+        if (!companyId) {
+          throw new Error('Company ID not found');
+        }
+
+        const response = await fetch('/api/users/', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            firstname: formData.firstname,
+            lastname: formData.lastname,
+            position: formData.position || null,
+            email: formData.email,
+            password: formData.password,
+            company_id: companyId,
+            is_superuser: isSuperuser,
+            notifications: 'disabled',
+            slack: 'disabled',
+            teams: 'disabled',
+            discord: 'disabled',
+            telegram: 'disabled'
+          }),
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.detail || 'User creation failed');
+        }
+
+        setSuccess('User added successfully!');
+        resetForm();
+        fetchUsers();
       }
-
-      // Redirect back to dashboard or show success
-      navigate('/dashboard/status', { state: { message: 'User added successfully!' } });
     } catch (err) {
-      setError(err.message || 'User creation failed. Please try again.');
+      setError(err.message || 'Operation failed. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -232,18 +373,61 @@ function AddUser() {
 
   // Handle cancel
   const handleCancel = () => {
-    navigate(-1);
+    if (editingUserId) {
+      resetForm();
+    } else {
+      navigate(-1);
+    }
   };
 
+  // Check if form is valid for submission
+  const isFormValid = () => {
+    if (!formData.firstname || !formData.lastname || !emailValid) {
+      return false;
+    }
+    // For new users, password is required
+    if (!editingUserId) {
+      return passwordStrength.isValid && passwordsMatch;
+    }
+    // For editing, password is optional (only if provided)
+    if (formData.password) {
+      return passwordStrength.isValid && passwordsMatch;
+    }
+    return true;
+  };
+
+  // Get current user ID to prevent self-deletion
+  const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+
   return (
-    <div className="auth-container">
-      <div className="auth-card">
-        <h1>Add New User</h1>
-        <p className="auth-subtitle">Create a new user account for your company</p>
+    <div className="teams-page">
+      <div className="page-header">
+        <h1>{editingUserId ? 'Edit User' : 'Add New User'}</h1>
+        <p className="subtitle">
+          {editingUserId ? 'Update user information' : 'Create a new user account for your company'}
+        </p>
+      </div>
 
-        {error && <div className="error-message">{error}</div>}
+      {error && (
+        <div className="alert alert-error">
+          <span className="alert-icon">!</span>
+          <span>{error}</span>
+          <button className="alert-close" onClick={() => setError('')}>&times;</button>
+        </div>
+      )}
 
-        <form onSubmit={handleSubmit} className="auth-form">
+      {success && (
+        <div className="alert alert-success">
+          <span className="alert-icon">&#10003;</span>
+          <span>{success}</span>
+          <button className="alert-close" onClick={() => setSuccess('')}>&times;</button>
+        </div>
+      )}
+
+      {/* User Form */}
+      <div className="setup-section">
+        <h2>{editingUserId ? 'Edit User' : 'User Information'}</h2>
+        <form onSubmit={handleSubmit}>
           <div className="form-row">
             <div className="form-group">
               <label htmlFor="firstname">First Name *</label>
@@ -284,6 +468,30 @@ function AddUser() {
             />
           </div>
 
+          <div className="form-group">
+            <label htmlFor="email">Email *</label>
+            <input
+              type="email"
+              id="email"
+              name="email"
+              value={formData.email}
+              onChange={handleChange}
+              required
+              maxLength={64}
+              className={emailValid === false ? 'invalid' : emailValid === true ? 'valid' : ''}
+            />
+            {emailValid === false && (
+              <div className="validation-message error">
+                Invalid email format. Use: yourname@example.com
+              </div>
+            )}
+            {emailValid === true && (
+              <div className="validation-message success">
+                Valid email format
+              </div>
+            )}
+          </div>
+
           <div className="form-group" style={{ marginBottom: '1.5rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
               <input
@@ -307,99 +515,79 @@ function AddUser() {
             </div>
           </div>
 
-          <div className="form-group">
-            <label htmlFor="email">Email *</label>
-            <input
-              type="email"
-              id="email"
-              name="email"
-              value={formData.email}
-              onChange={handleChange}
-              required
-              maxLength={64}
-              className={emailValid === false ? 'invalid' : emailValid === true ? 'valid' : ''}
-            />
-            {emailValid === false && (
-              <div className="validation-message error">
-                Invalid email format. Use: yourname@example.com
+          {!editingUserId && (
+            <>
+              <div className="form-group">
+                <label htmlFor="password">Password *</label>
+                <input
+                  type="password"
+                  id="password"
+                  name="password"
+                  value={formData.password}
+                  onChange={handleChange}
+                  required={!editingUserId}
+                  minLength={8}
+                />
+                <div className="password-strength-container">
+                  {formData.password && (
+                    <>
+                      <div className={`strength-bar strength-${passwordStrength.strength}`}>
+                        <div className="strength-fill"></div>
+                      </div>
+                      <div className="strength-checklist">
+                        <div className={passwordStrength.checks.length ? 'check-passed' : 'check-failed'}>
+                          {passwordStrength.checks.length ? '\u2713' : '\u25CB'} At least 8 characters
+                        </div>
+                        <div className={passwordStrength.checks.uppercase ? 'check-passed' : 'check-failed'}>
+                          {passwordStrength.checks.uppercase ? '\u2713' : '\u25CB'} One uppercase letter
+                        </div>
+                        <div className={passwordStrength.checks.lowercase ? 'check-passed' : 'check-failed'}>
+                          {passwordStrength.checks.lowercase ? '\u2713' : '\u25CB'} One lowercase letter
+                        </div>
+                        <div className={passwordStrength.checks.number ? 'check-passed' : 'check-failed'}>
+                          {passwordStrength.checks.number ? '\u2713' : '\u25CB'} One number
+                        </div>
+                        <div className={passwordStrength.checks.special ? 'check-passed' : 'check-failed'}>
+                          {passwordStrength.checks.special ? '\u2713' : '\u25CB'} One special character
+                        </div>
+                      </div>
+                    </>
+                  )}
+                  {!formData.password && (
+                    <div className="strength-placeholder">
+                      Password strength will be displayed here
+                    </div>
+                  )}
+                </div>
               </div>
-            )}
-            {emailValid === true && (
-              <div className="validation-message success">
-                ✓ Valid email format
+
+              <div className="form-group">
+                <label htmlFor="repeatPassword">Repeat Password *</label>
+                <input
+                  type="password"
+                  id="repeatPassword"
+                  name="repeatPassword"
+                  value={formData.repeatPassword}
+                  onChange={handleChange}
+                  required={!editingUserId}
+                  minLength={8}
+                  className={passwordsMatch === false ? 'invalid' : passwordsMatch === true ? 'valid' : ''}
+                />
+                <div className="password-match-container">
+                  {formData.repeatPassword && (
+                    <div className={`validation-message ${passwordsMatch ? 'success' : 'error'}`}>
+                      {passwordsMatch ? '\u2713 Passwords match' : '\u2717 Passwords do not match'}
+                    </div>
+                  )}
+                  {!formData.repeatPassword && (
+                    <div className="match-placeholder">
+                      Password match status will be displayed here
+                    </div>
+                  )}
+                </div>
               </div>
-            )}
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="password">Password *</label>
-            <input
-              type="password"
-              id="password"
-              name="password"
-              value={formData.password}
-              onChange={handleChange}
-              required
-              minLength={8}
-            />
-            <div className="password-strength-container">
-              {formData.password && (
-                <>
-                  <div className={`strength-bar strength-${passwordStrength.strength}`}>
-                    <div className="strength-fill"></div>
-                  </div>
-                  <div className="strength-checklist">
-                    <div className={passwordStrength.checks.length ? 'check-passed' : 'check-failed'}>
-                      {passwordStrength.checks.length ? '✓' : '○'} At least 8 characters
-                    </div>
-                    <div className={passwordStrength.checks.uppercase ? 'check-passed' : 'check-failed'}>
-                      {passwordStrength.checks.uppercase ? '✓' : '○'} One uppercase letter
-                    </div>
-                    <div className={passwordStrength.checks.lowercase ? 'check-passed' : 'check-failed'}>
-                      {passwordStrength.checks.lowercase ? '✓' : '○'} One lowercase letter
-                    </div>
-                    <div className={passwordStrength.checks.number ? 'check-passed' : 'check-failed'}>
-                      {passwordStrength.checks.number ? '✓' : '○'} One number
-                    </div>
-                    <div className={passwordStrength.checks.special ? 'check-passed' : 'check-failed'}>
-                      {passwordStrength.checks.special ? '✓' : '○'} One special character
-                    </div>
-                  </div>
-                </>
-              )}
-              {!formData.password && (
-                <div className="strength-placeholder">
-                  Password strength will be displayed here
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="repeatPassword">Repeat Password *</label>
-            <input
-              type="password"
-              id="repeatPassword"
-              name="repeatPassword"
-              value={formData.repeatPassword}
-              onChange={handleChange}
-              required
-              minLength={8}
-              className={passwordsMatch === false ? 'invalid' : passwordsMatch === true ? 'valid' : ''}
-            />
-            <div className="password-match-container">
-              {formData.repeatPassword && (
-                <div className={`validation-message ${passwordsMatch ? 'success' : 'error'}`}>
-                  {passwordsMatch ? '✓ Passwords match' : '✗ Passwords do not match'}
-                </div>
-              )}
-              {!formData.repeatPassword && (
-                <div className="match-placeholder">
-                  Password match status will be displayed here
-                </div>
-              )}
-            </div>
-          </div>
+            </>
+          )}
 
           <div className="form-actions">
             <button
@@ -408,17 +596,114 @@ function AddUser() {
               className="btn btn-secondary"
               disabled={loading}
             >
-              Cancel
+              {editingUserId ? 'Cancel Edit' : 'Cancel'}
             </button>
             <button
               type="submit"
               className="btn btn-primary"
-              disabled={loading || !emailValid || !passwordStrength.isValid || !passwordsMatch}
+              disabled={loading || !isFormValid()}
             >
-              {loading ? 'Adding User...' : 'Add User'}
+              {loading ? (editingUserId ? 'Updating...' : 'Adding User...') : (editingUserId ? 'Update User' : 'Add User')}
             </button>
           </div>
         </form>
+      </div>
+
+      {/* Users Table */}
+      <div className="setup-section">
+        <h2>Company Users</h2>
+
+        {loadingUsers ? (
+          <div className="loading-state">
+            <div className="spinner"></div>
+            <p>Loading users...</p>
+          </div>
+        ) : users.length === 0 ? (
+          <div className="empty-state">
+            <div className="empty-icon">&#128100;</div>
+            <p>No users found. Add your first user above.</p>
+          </div>
+        ) : (
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr style={{ borderBottom: '2px solid #e5e7eb', textAlign: 'left' }}>
+                  <th style={{ padding: '12px 8px', fontWeight: '600', color: '#374151' }}>Name</th>
+                  <th style={{ padding: '12px 8px', fontWeight: '600', color: '#374151' }}>Email</th>
+                  <th style={{ padding: '12px 8px', fontWeight: '600', color: '#374151' }}>Position</th>
+                  <th style={{ padding: '12px 8px', fontWeight: '600', color: '#374151' }}>Role</th>
+                  <th style={{ padding: '12px 8px', fontWeight: '600', color: '#374151', textAlign: 'right' }}>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {users.map((user) => (
+                  <tr
+                    key={user.id}
+                    style={{
+                      borderBottom: '1px solid #e5e7eb',
+                      backgroundColor: editingUserId === user.id ? '#f0f9ff' : 'transparent'
+                    }}
+                  >
+                    <td style={{ padding: '12px 8px' }}>
+                      {user.firstname} {user.lastname}
+                      {user.id === currentUser.id && (
+                        <span style={{
+                          marginLeft: '8px',
+                          fontSize: '0.75rem',
+                          color: '#6366f1',
+                          fontWeight: '500'
+                        }}>(You)</span>
+                      )}
+                    </td>
+                    <td style={{ padding: '12px 8px', color: '#6b7280' }}>{user.email}</td>
+                    <td style={{ padding: '12px 8px', color: '#6b7280' }}>{user.position || '-'}</td>
+                    <td style={{ padding: '12px 8px' }}>
+                      <span className={`status-badge ${user.is_superuser ? 'status-active' : 'status-disabled'}`}>
+                        {user.is_superuser ? 'Superuser' : 'User'}
+                      </span>
+                    </td>
+                    <td style={{ padding: '12px 8px', textAlign: 'right' }}>
+                      <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                        <button
+                          onClick={() => handleEdit(user)}
+                          className="btn btn-secondary btn-sm"
+                          disabled={editingUserId === user.id}
+                        >
+                          Edit
+                        </button>
+                        {deleteConfirm === user.id ? (
+                          <>
+                            <button
+                              onClick={() => handleDelete(user.id)}
+                              className="btn btn-danger btn-sm"
+                            >
+                              Confirm
+                            </button>
+                            <button
+                              onClick={() => setDeleteConfirm(null)}
+                              className="btn btn-secondary btn-sm"
+                            >
+                              Cancel
+                            </button>
+                          </>
+                        ) : (
+                          <button
+                            onClick={() => setDeleteConfirm(user.id)}
+                            className="btn btn-danger btn-sm"
+                            disabled={user.id === currentUser.id}
+                            title={user.id === currentUser.id ? 'Cannot delete yourself' : 'Delete user'}
+                          >
+                            Delete
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </div>
   );
