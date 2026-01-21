@@ -204,25 +204,65 @@ function AddUser() {
     setError('');
   };
 
-  // Open modal for adding new user
+  // Open modal for adding new user - always start with blank form
   const openAddModal = () => {
-    resetForm();
-    setShowModal(true);
-  };
-
-  // Open modal for editing user
-  const handleEdit = (user) => {
+    // Explicitly clear all form data - never load from backend
     setFormData({
-      firstname: user.firstname,
-      lastname: user.lastname,
-      position: user.position || '',
-      email: user.email,
+      firstname: '',
+      lastname: '',
+      position: '',
+      email: '',
       password: '',
       repeatPassword: ''
     });
-    setIsSuperuser(user.is_superuser);
+    setIsSuperuser(false);
+    setEditingUserId(null);
+    setEmailValid(null);
+    setPasswordStrength({
+      isValid: false,
+      message: '',
+      strength: 'weak',
+      checks: {
+        length: false,
+        uppercase: false,
+        lowercase: false,
+        number: false,
+        special: false
+      }
+    });
+    setPasswordsMatch(null);
+    setError('');
+    setShowModal(true);
+  };
+
+  // Open modal for editing user - NEVER load password from backend
+  const handleEdit = (user) => {
+    setFormData({
+      firstname: user.firstname || '',
+      lastname: user.lastname || '',
+      position: user.position || '',
+      email: user.email || '',
+      // Password fields are NEVER populated - users cannot see/edit existing passwords
+      password: '',
+      repeatPassword: ''
+    });
+    setIsSuperuser(Boolean(user.is_superuser));
     setEditingUserId(user.id);
     setEmailValid(true);
+    // Reset password validation state
+    setPasswordStrength({
+      isValid: false,
+      message: '',
+      strength: 'weak',
+      checks: {
+        length: false,
+        uppercase: false,
+        lowercase: false,
+        number: false,
+        special: false
+      }
+    });
+    setPasswordsMatch(null);
     setError('');
     setSuccess('');
     setShowModal(true);
@@ -678,10 +718,11 @@ function AddUser() {
                         type="password"
                         id="password"
                         name="password"
-                        value={formData.password}
+                        value={formData.password || ''}
                         onChange={handleChange}
                         required={!editingUserId}
                         minLength={8}
+                        autoComplete="new-password"
                       />
                       <div className="password-strength-container">
                         {formData.password && (
@@ -717,10 +758,11 @@ function AddUser() {
                         type="password"
                         id="repeatPassword"
                         name="repeatPassword"
-                        value={formData.repeatPassword}
+                        value={formData.repeatPassword || ''}
                         onChange={handleChange}
                         required={!editingUserId}
                         minLength={8}
+                        autoComplete="new-password"
                         className={passwordsMatch === false ? 'invalid' : passwordsMatch === true ? 'valid' : ''}
                       />
                       <div className="password-match-container">
