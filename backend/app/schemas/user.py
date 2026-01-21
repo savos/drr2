@@ -19,7 +19,7 @@ class UserBase(BaseModel):
 class UserCreate(UserBase):
     """Schema for creating a user."""
     company_id: str = Field(..., max_length=36)
-    password: str = Field(..., min_length=8)
+    password: str | None = Field(None, min_length=8)  # Optional - users added by superuser may not have password
     is_superuser: bool = False
 
     # Optional notification preferences

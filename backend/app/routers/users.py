@@ -31,7 +31,8 @@ async def create_user(
     Security features:
     - Only accessible by superusers
     - Email validation and normalization
-    - Strong password requirements
+    - Password is optional (users added by superuser may not have password)
+    - If password provided, strong password requirements apply
     - Bcrypt password hashing
     - Created user's is_superuser status is determined by the request
     """
@@ -47,19 +48,20 @@ async def create_user(
             detail="Email already registered"
         )
 
-    # Validate password strength
-    is_valid, message = validate_password_strength(user_data.password)
-    if not is_valid:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=message
-        )
-
-    try:
-        # Hash password with bcrypt
+    # If password is provided, validate strength and hash it
+    hashed_password = None
+    if user_data.password:
+        is_valid, message = validate_password_strength(user_data.password)
+        if not is_valid:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=message
+            )
         hashed_password = hash_password(user_data.password)
 
+    try:
         # Create user with specified is_superuser value
+        # Password can be None for users added by superuser
         user = User(
             id=str(uuid.uuid4()),
             company_id=user_data.company_id,

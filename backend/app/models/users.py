@@ -15,7 +15,7 @@ class User(Base):
     lastname = Column(String(64), nullable=False)
     position = Column(String(64), nullable=True, default=None)
     email = Column(String(64), unique=True, index=True, nullable=False)
-    hashed_password = Column(String(1024), nullable=False)
+    hashed_password = Column(String(1024), nullable=True, default=None)  # Nullable for users added by superuser
 
     # Status fields
     verified = Column(Integer, default=0, nullable=False)  # tinyint(1): 0=False, 1=True

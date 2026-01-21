@@ -5,28 +5,13 @@ function AddUser() {
     firstname: '',
     lastname: '',
     position: '',
-    email: '',
-    password: '',
-    repeatPassword: ''
+    email: ''
   });
   const [isSuperuser, setIsSuperuser] = useState(false);
   const [editingUserId, setEditingUserId] = useState(null);
   const [showModal, setShowModal] = useState(false);
 
   const [emailValid, setEmailValid] = useState(null);
-  const [passwordStrength, setPasswordStrength] = useState({
-    isValid: false,
-    message: '',
-    strength: 'weak',
-    checks: {
-      length: false,
-      uppercase: false,
-      lowercase: false,
-      number: false,
-      special: false
-    }
-  });
-  const [passwordsMatch, setPasswordsMatch] = useState(null);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
@@ -87,77 +72,6 @@ function AddUser() {
     return true;
   };
 
-  // Password strength validation
-  const checkPasswordStrength = (password) => {
-    if (!password) {
-      setPasswordStrength({
-        isValid: false,
-        message: '',
-        strength: 'weak',
-        checks: {
-          length: false,
-          uppercase: false,
-          lowercase: false,
-          number: false,
-          special: false
-        }
-      });
-      return;
-    }
-
-    const checks = {
-      length: password.length >= 8,
-      uppercase: /[A-Z]/.test(password),
-      lowercase: /[a-z]/.test(password),
-      number: /[0-9]/.test(password),
-      special: /[!@#$%^&*()_+\-=\[\]{}|;:,.<>?]/.test(password)
-    };
-
-    const passedChecks = Object.values(checks).filter(Boolean).length;
-    const isValid = Object.values(checks).every(Boolean);
-
-    let strength = 'weak';
-    let message = '';
-
-    if (!checks.length) {
-      message = 'Password must be at least 8 characters long';
-    } else if (!checks.uppercase) {
-      message = 'Password must contain at least 1 uppercase letter (A-Z)';
-    } else if (!checks.lowercase) {
-      message = 'Password must contain at least 1 lowercase letter (a-z)';
-    } else if (!checks.number) {
-      message = 'Password must contain at least 1 number (0-9)';
-    } else if (!checks.special) {
-      message = 'Password must contain at least 1 special character (!@#$%^&*()_+-=[]{}|;:,.<>?)';
-    } else {
-      message = 'Strong password!';
-      strength = 'strong';
-    }
-
-    if (passedChecks >= 4 && !isValid) {
-      strength = 'medium';
-    }
-
-    setPasswordStrength({
-      isValid,
-      message,
-      strength,
-      checks
-    });
-  };
-
-  // Password match validation
-  const checkPasswordsMatch = (password, repeatPassword) => {
-    if (!repeatPassword) {
-      setPasswordsMatch(null);
-      return false;
-    }
-
-    const match = password === repeatPassword;
-    setPasswordsMatch(match);
-    return match;
-  };
-
   // Handle form field changes
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -165,13 +79,6 @@ function AddUser() {
 
     if (name === 'email') {
       validateEmail(value);
-    } else if (name === 'password') {
-      checkPasswordStrength(value);
-      if (formData.repeatPassword) {
-        checkPasswordsMatch(value, formData.repeatPassword);
-      }
-    } else if (name === 'repeatPassword') {
-      checkPasswordsMatch(formData.password, value);
     }
   };
 
@@ -181,26 +88,11 @@ function AddUser() {
       firstname: '',
       lastname: '',
       position: '',
-      email: '',
-      password: '',
-      repeatPassword: ''
+      email: ''
     });
     setIsSuperuser(false);
     setEditingUserId(null);
     setEmailValid(null);
-    setPasswordStrength({
-      isValid: false,
-      message: '',
-      strength: 'weak',
-      checks: {
-        length: false,
-        uppercase: false,
-        lowercase: false,
-        number: false,
-        special: false
-      }
-    });
-    setPasswordsMatch(null);
     setError('');
   };
 
@@ -211,58 +103,26 @@ function AddUser() {
       firstname: '',
       lastname: '',
       position: '',
-      email: '',
-      password: '',
-      repeatPassword: ''
+      email: ''
     });
     setIsSuperuser(false);
     setEditingUserId(null);
     setEmailValid(null);
-    setPasswordStrength({
-      isValid: false,
-      message: '',
-      strength: 'weak',
-      checks: {
-        length: false,
-        uppercase: false,
-        lowercase: false,
-        number: false,
-        special: false
-      }
-    });
-    setPasswordsMatch(null);
     setError('');
     setShowModal(true);
   };
 
-  // Open modal for editing user - NEVER load password from backend
+  // Open modal for editing user
   const handleEdit = (user) => {
     setFormData({
       firstname: user.firstname || '',
       lastname: user.lastname || '',
       position: user.position || '',
-      email: user.email || '',
-      // Password fields are NEVER populated - users cannot see/edit existing passwords
-      password: '',
-      repeatPassword: ''
+      email: user.email || ''
     });
     setIsSuperuser(Boolean(user.is_superuser));
     setEditingUserId(user.id);
     setEmailValid(true);
-    // Reset password validation state
-    setPasswordStrength({
-      isValid: false,
-      message: '',
-      strength: 'weak',
-      checks: {
-        length: false,
-        uppercase: false,
-        lowercase: false,
-        number: false,
-        special: false
-      }
-    });
-    setPasswordsMatch(null);
     setError('');
     setSuccess('');
     setShowModal(true);
@@ -317,21 +177,6 @@ function AddUser() {
       return;
     }
 
-    // For new users or if password is provided for edit
-    if (!editingUserId || formData.password) {
-      // Validate password strength
-      if (!passwordStrength.isValid) {
-        setError('Please use a stronger password that meets all requirements');
-        return;
-      }
-
-      // Validate passwords match
-      if (!checkPasswordsMatch(formData.password, formData.repeatPassword)) {
-        setError('Passwords do not match');
-        return;
-      }
-    }
-
     setLoading(true);
 
     try {
@@ -369,7 +214,7 @@ function AddUser() {
         closeModal();
         fetchUsers();
       } else {
-        // Create new user
+        // Create new user (without password)
         const userStr = localStorage.getItem('user');
         if (!userStr) {
           throw new Error('User not authenticated');
@@ -392,7 +237,6 @@ function AddUser() {
             lastname: formData.lastname,
             position: formData.position || null,
             email: formData.email,
-            password: formData.password,
             company_id: companyId,
             is_superuser: isSuperuser,
             notifications: 'disabled',
@@ -422,18 +266,7 @@ function AddUser() {
 
   // Check if form is valid for submission
   const isFormValid = () => {
-    if (!formData.firstname || !formData.lastname || !emailValid) {
-      return false;
-    }
-    // For new users, password is required
-    if (!editingUserId) {
-      return passwordStrength.isValid && passwordsMatch;
-    }
-    // For editing, password is optional (only if provided)
-    if (formData.password) {
-      return passwordStrength.isValid && passwordsMatch;
-    }
-    return true;
+    return formData.firstname && formData.lastname && emailValid;
   };
 
   // Get current user ID to prevent self-deletion
@@ -709,72 +542,6 @@ function AddUser() {
                     Superuser can add users, SSLs and domains
                   </div>
                 </div>
-
-                {!editingUserId && (
-                  <>
-                    <div className="form-group">
-                      <label htmlFor="password">Password *</label>
-                      <input
-                        type="password"
-                        id="password"
-                        name="password"
-                        value={formData.password || ''}
-                        onChange={handleChange}
-                        required={!editingUserId}
-                        minLength={8}
-                        autoComplete="new-password"
-                      />
-                      <div className="password-strength-container">
-                        {formData.password && (
-                          <>
-                            <div className={`strength-bar strength-${passwordStrength.strength}`}>
-                              <div className="strength-fill"></div>
-                            </div>
-                            <div className="strength-checklist">
-                              <div className={passwordStrength.checks.length ? 'check-passed' : 'check-failed'}>
-                                {passwordStrength.checks.length ? '\u2713' : '\u25CB'} At least 8 characters
-                              </div>
-                              <div className={passwordStrength.checks.uppercase ? 'check-passed' : 'check-failed'}>
-                                {passwordStrength.checks.uppercase ? '\u2713' : '\u25CB'} One uppercase letter
-                              </div>
-                              <div className={passwordStrength.checks.lowercase ? 'check-passed' : 'check-failed'}>
-                                {passwordStrength.checks.lowercase ? '\u2713' : '\u25CB'} One lowercase letter
-                              </div>
-                              <div className={passwordStrength.checks.number ? 'check-passed' : 'check-failed'}>
-                                {passwordStrength.checks.number ? '\u2713' : '\u25CB'} One number
-                              </div>
-                              <div className={passwordStrength.checks.special ? 'check-passed' : 'check-failed'}>
-                                {passwordStrength.checks.special ? '\u2713' : '\u25CB'} One special character
-                              </div>
-                            </div>
-                          </>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="form-group">
-                      <label htmlFor="repeatPassword">Repeat Password *</label>
-                      <input
-                        type="password"
-                        id="repeatPassword"
-                        name="repeatPassword"
-                        value={formData.repeatPassword || ''}
-                        onChange={handleChange}
-                        required={!editingUserId}
-                        minLength={8}
-                        autoComplete="new-password"
-                        className={passwordsMatch === false ? 'invalid' : passwordsMatch === true ? 'valid' : ''}
-                      />
-                      <div className="password-match-container">
-                        {formData.repeatPassword && (
-                          <div className={`validation-message ${passwordsMatch ? 'success' : 'error'}`}>
-                            {passwordsMatch ? '\u2713 Passwords match' : '\u2717 Passwords do not match'}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </>
-                )}
 
                 <div className="form-actions" style={{ marginTop: '1.5rem' }}>
                   <button
