@@ -20,6 +20,8 @@ function AddUser() {
   const [users, setUsers] = useState([]);
   const [loadingUsers, setLoadingUsers] = useState(true);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [userToDelete, setUserToDelete] = useState(null);
 
   // Fetch users on mount
   useEffect(() => {
@@ -134,11 +136,25 @@ function AddUser() {
     resetForm();
   };
 
-  // Handle delete button click
-  const handleDelete = async (userId) => {
+  // Open delete confirmation modal
+  const openDeleteModal = (user) => {
+    setUserToDelete(user);
+    setShowDeleteModal(true);
+  };
+
+  // Close delete confirmation modal
+  const closeDeleteModal = () => {
+    setShowDeleteModal(false);
+    setUserToDelete(null);
+  };
+
+  // Handle delete confirmation
+  const handleDelete = async () => {
+    if (!userToDelete) return;
+
     try {
       const token = localStorage.getItem('access_token');
-      const response = await fetch(`/api/users/${userId}`, {
+      const response = await fetch(`/api/users/${userToDelete.id}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -149,13 +165,15 @@ function AddUser() {
 
       if (response.ok) {
         setSuccess('User deleted successfully');
-        setDeleteConfirm(null);
+        closeDeleteModal();
         fetchUsers();
       } else {
         setError(data.detail || 'Failed to delete user');
+        closeDeleteModal();
       }
     } catch (err) {
       setError('Error deleting user');
+      closeDeleteModal();
     }
   };
 
@@ -351,38 +369,44 @@ function AddUser() {
                       </span>
                     </td>
                     <td style={{ padding: '12px 8px', textAlign: 'right' }}>
-                      <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                      <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', alignItems: 'center' }}>
                         <button
                           onClick={() => handleEdit(user)}
-                          className="btn btn-secondary btn-sm"
+                          title="Edit user"
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            cursor: 'pointer',
+                            padding: '4px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                          }}
                         >
-                          Edit
+                          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6b7280" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path>
+                          </svg>
                         </button>
-                        {deleteConfirm === user.id ? (
-                          <>
-                            <button
-                              onClick={() => handleDelete(user.id)}
-                              className="btn btn-danger btn-sm"
-                            >
-                              Confirm
-                            </button>
-                            <button
-                              onClick={() => setDeleteConfirm(null)}
-                              className="btn btn-secondary btn-sm"
-                            >
-                              Cancel
-                            </button>
-                          </>
-                        ) : (
-                          <button
-                            onClick={() => setDeleteConfirm(user.id)}
-                            className="btn btn-danger btn-sm"
-                            disabled={user.id === currentUser.id}
-                            title={user.id === currentUser.id ? 'Cannot delete yourself' : 'Delete user'}
-                          >
-                            Delete
-                          </button>
-                        )}
+                        <button
+                          onClick={() => openDeleteModal(user)}
+                          disabled={user.id === currentUser.id}
+                          title={user.id === currentUser.id ? 'Cannot delete yourself' : 'Delete user'}
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            cursor: user.id === currentUser.id ? 'not-allowed' : 'pointer',
+                            padding: '4px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            opacity: user.id === currentUser.id ? 0.3 : 1
+                          }}
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <line x1="18" y1="6" x2="6" y2="18"></line>
+                            <line x1="6" y1="6" x2="18" y2="18"></line>
+                          </svg>
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -393,7 +417,78 @@ function AddUser() {
         )}
       </div>
 
-      {/* Modal */}
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && userToDelete && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+            padding: '1rem'
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) closeDeleteModal();
+          }}
+        >
+          <div
+            style={{
+              backgroundColor: 'white',
+              borderRadius: '12px',
+              width: '100%',
+              maxWidth: '400px',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)'
+            }}
+          >
+            <div style={{ padding: '1.5rem', textAlign: 'center' }}>
+              <div style={{
+                width: '48px',
+                height: '48px',
+                borderRadius: '50%',
+                backgroundColor: '#fef2f2',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                margin: '0 auto 1rem'
+              }}>
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <line x1="15" y1="9" x2="9" y2="15"></line>
+                  <line x1="9" y1="9" x2="15" y2="15"></line>
+                </svg>
+              </div>
+              <h3 style={{ margin: '0 0 0.5rem', fontSize: '1.125rem', fontWeight: '600' }}>
+                Delete User
+              </h3>
+              <p style={{ margin: '0 0 1.5rem', color: '#6b7280', fontSize: '0.875rem' }}>
+                Are you sure you want to delete <strong>{userToDelete.firstname} {userToDelete.lastname}</strong>? This action cannot be undone.
+              </p>
+              <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+                <button
+                  onClick={closeDeleteModal}
+                  className="btn btn-secondary"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleDelete}
+                  className="btn btn-danger"
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add/Edit User Modal */}
       {showModal && (
         <div
           style={{
