@@ -13,6 +13,7 @@ from app.utils.security import (
     hash_password,
     validate_password_strength,
     get_current_superuser,
+    get_current_user,
     generate_reset_token,
     get_verification_token_expiry,
 )
@@ -121,6 +122,35 @@ async def list_users(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to retrieve users"
+        )
+
+
+@router.get("/verified", response_model=List[UserResponse])
+async def list_verified_users(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    List all verified users in the current user's company.
+
+    Available to all authenticated users (not just superusers).
+    Returns only users with verified email addresses (verified = 2).
+    """
+    try:
+        result = await db.execute(
+            select(User)
+            .where(User.company_id == current_user.company_id)
+            .where(User.verified == 2)  # Only fully verified users
+            .where(User.deleted_at.is_(None))
+            .order_by(User.created_at.desc())
+        )
+        users = result.scalars().all()
+        return users
+    except Exception as e:
+        logger.error(f"Error listing verified users: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to retrieve verified users"
         )
 
 

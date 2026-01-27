@@ -140,7 +140,7 @@ function Sidebar({ isMobileOpen, onMobileClose }) {
   return (
     <>
       {/* Desktop Sidebar - Always visible on large screens */}
-      <aside className="hidden lg:block w-64 bg-white dark:bg-zinc-900 border-r border-zinc-200 dark:border-zinc-800 h-[calc(100vh-73px)] overflow-y-auto">
+      <aside className="hidden lg:block w-64 bg-white dark:bg-zinc-900 border-r border-zinc-200 dark:border-zinc-800 h-full overflow-y-auto">
         <SidebarContent />
       </aside>
 

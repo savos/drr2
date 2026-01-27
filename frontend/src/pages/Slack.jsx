@@ -249,69 +249,24 @@ function Slack() {
         </div>
       )}
 
-      <div className="setup-section">
-        <h2>How to Set Up Slack Integration</h2>
-        <div className="instructions-card">
-          <div className="instruction-step">
-            <div className="step-number">1</div>
-            <div className="step-content">
-              <h3>Click "Connect to Slack"</h3>
-              <p>You'll be redirected to Slack's authorization page where you can choose which workspace to connect.</p>
-            </div>
-          </div>
-
-          <div className="instruction-step">
-            <div className="step-number">2</div>
-            <div className="step-content">
-              <h3>Authorize DRR App</h3>
-              <p>Grant DRR permission to send you direct messages and read your user information. Your data remains secure and private.</p>
-            </div>
-          </div>
-
-          <div className="instruction-step">
-            <div className="step-number">3</div>
-            <div className="step-content">
-              <h3>Select Channels</h3>
-              <p>After connecting, you will be prompted to select channels you created. The bot must already be in those channels.</p>
-            </div>
-          </div>
-
-          <div className="instruction-step">
-            <div className="step-number">4</div>
-            <div className="step-content">
-              <h3>Test Your Connection</h3>
-              <p>After connecting, use the "Test Connection" button to verify everything is working. You should receive a test message in your Slack DMs.</p>
-            </div>
-          </div>
-
-          <div className="instruction-step">
-            <div className="step-number">5</div>
-            <div className="step-content">
-              <h3>Receive Notifications</h3>
-              <p>You'll automatically receive Slack notifications when your domains or SSL certificates are about to expire.</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="connect-section">
-          <button
-            className="btn btn-primary btn-large"
-            onClick={handleConnectSlack}
-            disabled={connectingOAuth}
-          >
-            {connectingOAuth ? (
-              <>
-                <span className="spinner"></span>
-                Connecting...
-              </>
-            ) : (
-              <>
-                <img src="/slack-icon.svg" alt="Slack" className="btn-icon" onError={(e) => e.target.style.display = 'none'} />
-                Connect to Slack
-              </>
-            )}
-          </button>
-        </div>
+      <div className="connect-section">
+        <button
+          className="btn btn-primary btn-large"
+          onClick={handleConnectSlack}
+          disabled={connectingOAuth}
+        >
+          {connectingOAuth ? (
+            <>
+              <span className="spinner"></span>
+              Connecting...
+            </>
+          ) : (
+            <>
+              <img src="/slack-icon.svg" alt="Slack" className="btn-icon" onError={(e) => e.target.style.display = 'none'} />
+              Connect to Slack
+            </>
+          )}
+        </button>
       </div>
 
       <div className="integrations-section">
@@ -397,6 +352,51 @@ function Slack() {
             })}
           </div>
         )}
+      </div>
+
+      <div className="setup-section">
+        <h2>How to Set Up Slack Integration</h2>
+        <div className="instructions-card">
+          <div className="instruction-step">
+            <div className="step-number">1</div>
+            <div className="step-content">
+              <h3>Click "Connect to Slack"</h3>
+              <p>You'll be redirected to Slack's authorization page where you can choose which workspace to connect.</p>
+            </div>
+          </div>
+
+          <div className="instruction-step">
+            <div className="step-number">2</div>
+            <div className="step-content">
+              <h3>Authorize DRR App</h3>
+              <p>Grant DRR permission to send you direct messages and read your user information. Your data remains secure and private.</p>
+            </div>
+          </div>
+
+          <div className="instruction-step">
+            <div className="step-number">3</div>
+            <div className="step-content">
+              <h3>Select Channels</h3>
+              <p>After connecting, you will be prompted to select channels you created. The bot must already be in those channels.</p>
+            </div>
+          </div>
+
+          <div className="instruction-step">
+            <div className="step-number">4</div>
+            <div className="step-content">
+              <h3>Test Your Connection</h3>
+              <p>After connecting, use the "Test Connection" button to verify everything is working. You should receive a test message in your Slack DMs.</p>
+            </div>
+          </div>
+
+          <div className="instruction-step">
+            <div className="step-number">5</div>
+            <div className="step-content">
+              <h3>Receive Notifications</h3>
+              <p>You'll automatically receive Slack notifications when your domains or SSL certificates are about to expire.</p>
+            </div>
+          </div>
+        </div>
       </div>
 
       <SlackChannelSelectionModal

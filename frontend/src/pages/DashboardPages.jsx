@@ -3,6 +3,8 @@ import Slack from './Slack';
 import Telegram from './Telegram';
 import Discord from './Discord';
 import Teams from './Teams';
+import Email from './Email';
+import Solutions from './Solutions';
 
 // Account Pages
 export function PlanPage() {
@@ -40,7 +42,7 @@ export function SSLMonitorPage() {
 
 // Channel Pages
 export function EmailChannelPage() {
-  return <StubPage title="Email Notifications" description="Configure email notification settings for domain reminders." />;
+  return <Email />;
 }
 
 export function PushNotificationsPage() {
@@ -123,8 +125,8 @@ export function RemindersHistoryPage() {
 }
 
 // Static Pages
-export function AboutPage() {
-  return <StubPage title="About DRR" description="Learn more about Domain Renewal Reminder and our mission." />;
+export function SolutionsPage() {
+  return <Solutions />;
 }
 
 export function ProductsPage() {

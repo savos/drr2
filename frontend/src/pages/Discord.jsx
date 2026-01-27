@@ -248,118 +248,32 @@ function Discord() {
         </div>
       )}
 
-      <div className="setup-section">
-        <h2>How to Set Up Discord Integration</h2>
-
-        <div className="instructions-card">
-          <h3 style={{ marginBottom: '1rem', color: '#5865F2' }}>Direct Message Setup</h3>
-
-          <div className="instruction-step">
-            <div className="step-number">1</div>
-            <div className="step-content">
-              <h3>Click "Connect Discord"</h3>
-              <p>This will redirect you to Discord to authorize the DRR bot.</p>
-            </div>
-          </div>
-
-          <div className="instruction-step">
-            <div className="step-number">2</div>
-            <div className="step-content">
-              <h3>Authorize the Application</h3>
-              <p>You'll be redirected to Discord. Click "Authorize" and select a server to install the bot (Discord will show a server picker).</p>
-            </div>
-          </div>
-
-          <div className="instruction-step">
-            <div className="step-number">3</div>
-            <div className="step-content">
-              <h3>Confirm Connection</h3>
-              <p>After authorization, you'll be redirected back and your connection will appear below as a Direct Message card.</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="instructions-card" style={{ marginTop: '1.5rem' }}>
-          <h3 style={{ marginBottom: '1rem', color: '#5865F2' }}>Server Channel Setup (Optional)</h3>
-
-          <div className="instruction-step">
-            <div className="step-number">1</div>
-            <div className="step-content">
-              <h3>Add Bot to Your Server</h3>
-              <p>During authorization you can install the bot to a server. If you skip it, use the invite link below. The bot must have the "View Audit Log" permission to list channels you created.</p>
-            </div>
-          </div>
-
-          <div className="instruction-step">
-            <div className="step-number">2</div>
-            <div className="step-content">
-              <h3>Select Channels</h3>
-              <p>Choose which channels you created should receive domain expiration notifications. Only channels created by you and visible to the bot will appear in the list.</p>
-            </div>
-          </div>
-
-          <div className="instruction-step">
-            <div className="step-number">3</div>
-            <div className="step-content">
-              <h3>Receive Server Notifications</h3>
-              <p>All server members with access to the channel will see domain and SSL expiration notifications.</p>
-            </div>
-          </div>
-
-          <div className="instruction-step">
-            <div className="step-number">4</div>
-            <div className="step-content">
-              <h3>No Servers Showing?</h3>
-              <p>Re-invite the bot with the updated permissions and create at least one channel in that server, then refresh the modal.</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="instructions-card" style={{ marginTop: '1.5rem', backgroundColor: '#fef3c7', borderColor: '#fbbf24' }}>
-          <h3 style={{ marginBottom: '1rem', color: '#d97706' }}>Disconnecting</h3>
-
-          <div className="instruction-step">
-            <div className="step-content" style={{ marginLeft: '0' }}>
-              <h4 style={{ marginBottom: '0.5rem' }}>For Direct Messages:</h4>
-              <p style={{ marginBottom: '1rem' }}>
-                Click "Disconnect" to stop receiving notifications. The bot will no longer send you DMs.
-              </p>
-
-              <h4 style={{ marginBottom: '0.5rem' }}>For Server Channels:</h4>
-              <p>
-                Click "Disconnect" to stop notifications to that specific channel. You can remove the bot from your server entirely in Discord's Server Settings → Integrations.
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <div className="connect-section">
+      <div className="connect-section">
+        <a
+          href={startLink}
+          className="btn btn-primary btn-large"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          <Icon name="chat" size="md" className="text-white" />
+          Connect Discord
+        </a>
+        {inviteUrl && (
           <a
-            href={startLink}
-            className="btn btn-primary btn-large"
+            href={inviteUrl}
+            className="btn btn-secondary btn-large"
             target="_blank"
             rel="noopener noreferrer"
+            style={{ marginLeft: '0.75rem' }}
           >
-            <Icon name="chat" size="md" className="text-white" />
-            Connect Discord
+            Add Bot to Server
           </a>
-          {inviteUrl && (
-            <a
-              href={inviteUrl}
-              className="btn btn-secondary btn-large"
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{ marginLeft: '0.75rem' }}
-            >
-              Add Bot to Server
-            </a>
-          )}
-          {botName && (
-            <p className="bot-info">
-              Bot: <strong>{botName}</strong>
-            </p>
-          )}
-        </div>
+        )}
+        {botName && (
+          <p className="bot-info">
+            Bot: <strong>{botName}</strong>
+          </p>
+        )}
       </div>
 
       <div className="integrations-section">
@@ -458,6 +372,92 @@ function Discord() {
             })}
           </div>
         )}
+      </div>
+
+      <div className="setup-section">
+        <h2>How to Set Up Discord Integration</h2>
+
+        <div className="instructions-card">
+          <h3 style={{ marginBottom: '1rem', color: '#5865F2' }}>Direct Message Setup</h3>
+
+          <div className="instruction-step">
+            <div className="step-number">1</div>
+            <div className="step-content">
+              <h3>Click "Connect Discord"</h3>
+              <p>This will redirect you to Discord to authorize the DRR bot.</p>
+            </div>
+          </div>
+
+          <div className="instruction-step">
+            <div className="step-number">2</div>
+            <div className="step-content">
+              <h3>Authorize the Application</h3>
+              <p>You'll be redirected to Discord. Click "Authorize" and select a server to install the bot (Discord will show a server picker).</p>
+            </div>
+          </div>
+
+          <div className="instruction-step">
+            <div className="step-number">3</div>
+            <div className="step-content">
+              <h3>Confirm Connection</h3>
+              <p>After authorization, you'll be redirected back and your connection will appear below as a Direct Message card.</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="instructions-card" style={{ marginTop: '1.5rem' }}>
+          <h3 style={{ marginBottom: '1rem', color: '#5865F2' }}>Server Channel Setup (Optional)</h3>
+
+          <div className="instruction-step">
+            <div className="step-number">1</div>
+            <div className="step-content">
+              <h3>Add Bot to Your Server</h3>
+              <p>During authorization you can install the bot to a server. If you skip it, use the invite link below. The bot must have the "View Audit Log" permission to list channels you created.</p>
+            </div>
+          </div>
+
+          <div className="instruction-step">
+            <div className="step-number">2</div>
+            <div className="step-content">
+              <h3>Select Channels</h3>
+              <p>Choose which channels you created should receive domain expiration notifications. Only channels created by you and visible to the bot will appear in the list.</p>
+            </div>
+          </div>
+
+          <div className="instruction-step">
+            <div className="step-number">3</div>
+            <div className="step-content">
+              <h3>Receive Server Notifications</h3>
+              <p>All server members with access to the channel will see domain and SSL expiration notifications.</p>
+            </div>
+          </div>
+
+          <div className="instruction-step">
+            <div className="step-number">4</div>
+            <div className="step-content">
+              <h3>No Servers Showing?</h3>
+              <p>Re-invite the bot with the updated permissions and create at least one channel in that server, then refresh the modal.</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="instructions-card" style={{ marginTop: '1.5rem', backgroundColor: '#fef3c7', borderColor: '#fbbf24' }}>
+          <h3 style={{ marginBottom: '1rem', color: '#d97706' }}>Disconnecting</h3>
+
+          <div className="instruction-step">
+            <div className="step-content" style={{ marginLeft: '0' }}>
+              <h4 style={{ marginBottom: '0.5rem' }}>For Direct Messages:</h4>
+              <p style={{ marginBottom: '1rem' }}>
+                Click "Disconnect" to stop receiving notifications. The bot will no longer send you DMs.
+              </p>
+
+              <h4 style={{ marginBottom: '0.5rem' }}>For Server Channels:</h4>
+              <p>
+                Click "Disconnect" to stop notifications to that specific channel. You can remove the bot from your server entirely in Discord's Server Settings → Integrations.
+              </p>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Guild Selection Modal */}

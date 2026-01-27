@@ -25,7 +25,7 @@ function Header({ user, onLogout }) {
         {/* Center: Navigation Links */}
         <nav className="hidden md:flex items-center gap-6">
           <Link to="/" className="text-gray-700 hover:text-purple-600 transition-colors font-medium">Home</Link>
-          <Link to="/about" className="text-gray-700 hover:text-purple-600 transition-colors font-medium">About</Link>
+          <Link to="/solutions" className="text-gray-700 hover:text-purple-600 transition-colors font-medium">Solutions</Link>
           <Link to="/products" className="text-gray-700 hover:text-purple-600 transition-colors font-medium">Products</Link>
           <Link to="/partners" className="text-gray-700 hover:text-purple-600 transition-colors font-medium">Partners</Link>
           <Link to="/company" className="text-gray-700 hover:text-purple-600 transition-colors font-medium">Company</Link>

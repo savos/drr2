@@ -181,11 +181,6 @@ function Telegram() {
       <div className="page-header">
         <h1>Telegram Integration</h1>
         <p className="subtitle">Connect your Telegram account to receive domain and SSL certificate expiration notifications</p>
-        <div className="page-actions">
-          <button className="btn btn-secondary" onClick={() => loadIntegrations()}>
-            Refresh
-          </button>
-        </div>
       </div>
 
       {error && (
@@ -203,6 +198,116 @@ function Telegram() {
           <button className="alert-close" onClick={() => setSuccessMessage(null)}>×</button>
         </div>
       )}
+
+      <div className="connect-section">
+        <a
+          href={startLink}
+          className="btn btn-primary btn-large"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          <Icon name="chat" size="md" className="text-white" />
+          Connect Telegram
+        </a>
+        <button className="btn btn-secondary btn-large" onClick={() => loadIntegrations()} style={{ marginLeft: '0.75rem' }}>
+          <Icon name="clock" size="md" />
+          Refresh
+        </button>
+        {botName && (
+          <p className="bot-info">
+            Bot: <strong>{botName}</strong>
+          </p>
+        )}
+      </div>
+
+      <div className="integrations-section">
+        <h2>Connected Chats</h2>
+
+        {loading ? (
+          <div className="integrations-grid">
+            <SkeletonCard />
+            <SkeletonCard />
+            <SkeletonCard />
+          </div>
+        ) : integrations.length === 0 ? (
+          <div className="empty-state">
+            <div className="empty-icon"><Icon name="chat" variant="outline" size="xl" className="text-zinc-400 dark:text-zinc-600" /></div>
+            <h3>No Connected Chats</h3>
+            <p>Connect your Telegram account to start receiving notifications.</p>
+          </div>
+        ) : (
+          <div className="integrations-grid">
+            {integrations.map((integration) => {
+              // Determine if this is a DM or group integration
+              const isDM = integration.chat_type === 'private';
+              const displayName = isDM
+                ? 'Direct Message'
+                : (integration.chat_title || `Group ${integration.channel_id}`);
+
+              return (
+                <div key={integration.id} className="integration-card">
+                  <div className="integration-header">
+                    <div className="integration-info">
+                      <h3>{displayName}</h3>
+                      {integration.first_name && (
+                        <p className="user-name">
+                          {integration.first_name}
+                          {integration.last_name && ` ${integration.last_name}`}
+                          {integration.username && ` (@${integration.username})`}
+                        </p>
+                      )}
+                    </div>
+                    {getStatusBadge(integration.status)}
+                  </div>
+
+                  <div className="integration-meta">
+                    <div className="meta-item">
+                      <span className="meta-label">Type:</span>
+                      <span className="meta-value">{isDM ? 'Direct Message' : 'Group'}</span>
+                    </div>
+                    <div className="meta-item">
+                      <span className="meta-label">Connected:</span>
+                      <span className="meta-value">
+                        {new Date(integration.created_at).toLocaleDateString()}
+                      </span>
+                    </div>
+                    {!isDM && integration.channel_id && (
+                      <div className="meta-item">
+                        <span className="meta-label">Chat ID:</span>
+                        <span className="meta-value">{integration.channel_id}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="integration-actions">
+                    <button
+                      className="btn btn-secondary btn-sm"
+                      onClick={() => handleTestConnection(integration.id)}
+                      disabled={testingConnection === integration.id}
+                    >
+                      {testingConnection === integration.id ? (
+                        <>
+                          <span className="spinner-sm"></span>
+                          Testing...
+                        </>
+                      ) : (
+                        '🧪 Test Connection'
+                      )}
+                    </button>
+
+                    <button
+                      className="btn btn-danger btn-sm"
+                      onClick={() => handleDeleteIntegration(integration.id)}
+                    >
+                      🗑️ Disconnect
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
 
       <div className="setup-section">
         <h2>How to Set Up Telegram Integration</h2>
@@ -295,112 +400,6 @@ function Telegram() {
             </div>
           </div>
         </div>
-
-        <div className="connect-section">
-          <a
-            href={startLink}
-            className="btn btn-primary btn-large"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Icon name="chat" size="md" className="text-white" />
-            Connect Telegram
-          </a>
-          {botName && (
-            <p className="bot-info">
-              Bot: <strong>{botName}</strong>
-            </p>
-          )}
-        </div>
-      </div>
-
-      <div className="integrations-section">
-        <h2>Connected Chats</h2>
-
-        {loading ? (
-          <div className="integrations-grid">
-            <SkeletonCard />
-            <SkeletonCard />
-            <SkeletonCard />
-          </div>
-        ) : integrations.length === 0 ? (
-          <div className="empty-state">
-            <div className="empty-icon"><Icon name="chat" variant="outline" size="xl" className="text-zinc-400 dark:text-zinc-600" /></div>
-            <h3>No Connected Chats</h3>
-            <p>Connect your Telegram account to start receiving notifications.</p>
-          </div>
-        ) : (
-          <div className="integrations-grid">
-            {integrations.map((integration) => {
-              // Determine if this is a DM or group integration
-              const isDM = integration.chat_type === 'private';
-              const displayName = isDM
-                ? 'Direct Message'
-                : (integration.chat_title || `Group ${integration.channel_id}`);
-
-              return (
-                <div key={integration.id} className="integration-card">
-                  <div className="integration-header">
-                    <div className="integration-info">
-                      <h3>{displayName}</h3>
-                      {integration.first_name && (
-                        <p className="user-name">
-                          {integration.first_name}
-                          {integration.last_name && ` ${integration.last_name}`}
-                          {integration.username && ` (@${integration.username})`}
-                        </p>
-                      )}
-                    </div>
-                    {getStatusBadge(integration.status)}
-                  </div>
-
-                  <div className="integration-meta">
-                    <div className="meta-item">
-                      <span className="meta-label">Type:</span>
-                      <span className="meta-value">{isDM ? 'Direct Message' : 'Group'}</span>
-                    </div>
-                    <div className="meta-item">
-                      <span className="meta-label">Connected:</span>
-                      <span className="meta-value">
-                        {new Date(integration.created_at).toLocaleDateString()}
-                      </span>
-                    </div>
-                    {!isDM && integration.channel_id && (
-                      <div className="meta-item">
-                        <span className="meta-label">Chat ID:</span>
-                        <span className="meta-value">{integration.channel_id}</span>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="integration-actions">
-                    <button
-                      className="btn btn-secondary btn-sm"
-                      onClick={() => handleTestConnection(integration.id)}
-                      disabled={testingConnection === integration.id}
-                    >
-                      {testingConnection === integration.id ? (
-                        <>
-                          <span className="spinner-sm"></span>
-                          Testing...
-                        </>
-                      ) : (
-                        '🧪 Test Connection'
-                      )}
-                    </button>
-
-                    <button
-                      className="btn btn-danger btn-sm"
-                      onClick={() => handleDeleteIntegration(integration.id)}
-                    >
-                      🗑️ Disconnect
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
       </div>
     </div>
     </AnimatedPage>

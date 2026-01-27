@@ -43,7 +43,7 @@ import {
   PipedreamPage,
   SetRemindersPage,
   RemindersHistoryPage,
-  AboutPage,
+  SolutionsPage,
   ProductsPage,
   PartnersPage,
   CompanyPage,
@@ -118,7 +118,7 @@ function App() {
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/verify-email" element={<VerifyEmail onAuthSuccess={handleAuthSuccess} />} />
-            <Route path="/about" element={<AboutPage />} />
+            <Route path="/solutions" element={<SolutionsPage />} />
             <Route path="/products" element={<ProductsPage />} />
             <Route path="/partners" element={<PartnersPage />} />
             <Route path="/company" element={<CompanyPage />} />

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Icon } from '../utils/icons';
+import Footer from '../components/Footer';
 
 function Home() {
   const [cases, setCases] = useState([]);
@@ -135,7 +136,7 @@ function Home() {
               <Icon name="rocket" size="md" className="group-hover:translate-x-1 transition-transform" />
             </Link>
             <Link
-              to="/about"
+              to="/solutions"
               className="px-8 py-4 rounded-xl text-lg font-bold transition-all duration-300 inline-flex items-center gap-2 bg-white/10 text-white border-2 border-white/30 hover:bg-white/20 backdrop-blur-sm"
             >
               Learn More
@@ -507,6 +508,9 @@ function Home() {
           </motion.p>
         </div>
       </section>
+
+      {/* Footer */}
+      <Footer />
     </div>
   );
 }
