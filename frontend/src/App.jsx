@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { ThemeProvider } from './contexts/ThemeContext';
 import PublicLayout from './components/PublicLayout';
 import DashboardLayout from './components/DashboardLayout';
 import Home from './pages/Home';
@@ -8,6 +9,7 @@ import Login from './pages/Login';
 import Auth from './pages/Auth';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
+import VerifyEmail from './pages/VerifyEmail';
 import Dashboard from './pages/Dashboard';
 import AddUser from './pages/AddUser';
 
@@ -101,9 +103,10 @@ function App() {
   };
 
   return (
-    <Router>
-      <div className="app-container">
-        <Routes>
+    <ThemeProvider>
+      <Router>
+        <div className="app-container">
+          <Routes>
           {/* Under Development - no header */}
           <Route path="/" element={<UnderDevelopment />} />
 
@@ -114,6 +117,7 @@ function App() {
             <Route path="/register" element={<Auth onAuthSuccess={handleAuthSuccess} />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="/verify-email" element={<VerifyEmail onAuthSuccess={handleAuthSuccess} />} />
             <Route path="/about" element={<AboutPage />} />
             <Route path="/products" element={<ProductsPage />} />
             <Route path="/partners" element={<PartnersPage />} />
@@ -194,6 +198,7 @@ function App() {
         </Routes>
       </div>
     </Router>
+    </ThemeProvider>
   );
 }
 

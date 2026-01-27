@@ -1,4 +1,5 @@
 """Users router for user management by superusers."""
+import os
 import uuid
 import logging
 from typing import List
@@ -12,7 +13,10 @@ from app.utils.security import (
     hash_password,
     validate_password_strength,
     get_current_superuser,
+    generate_reset_token,
+    get_verification_token_expiry,
 )
+from app.services.email import email_service
 
 logger = logging.getLogger(__name__)
 
@@ -297,4 +301,72 @@ async def delete_user(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to delete user"
+        )
+
+
+@router.post("/{user_id}/send-verification")
+async def send_verification_email(
+    user_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_superuser)
+):
+    """
+    Send verification email to a user (superuser only).
+
+    Security features:
+    - Only accessible by superusers
+    - Can only send to users in the same company
+    - Generates a secure verification token
+    """
+    # Get the user
+    result = await db.execute(
+        select(User)
+        .where(User.id == user_id)
+        .where(User.company_id == current_user.company_id)
+        .where(User.deleted_at.is_(None))
+    )
+    user = result.scalar_one_or_none()
+
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
+
+    try:
+        # Generate verification token (reuse reset token logic)
+        plain_token, hashed_token = generate_reset_token()
+
+        # Store hashed token and expiry (24 hours for email verification)
+        user.reset_token = hashed_token
+        user.reset_token_expires = get_verification_token_expiry()
+
+        # Update verification status to pending
+        user.verified = 1
+
+        await db.commit()
+
+        # Build verification URL
+        frontend_url = os.getenv("FRONTEND_URL", "http://localhost:3000")
+        verify_url = f"{frontend_url}/verify-email?token={plain_token}"
+
+        # Send email
+        email_sent = email_service.send_verification_email(
+            to_email=user.email,
+            verify_url=verify_url
+        )
+
+        if email_sent:
+            logger.info(f"Verification email sent to: {user.email}")
+        else:
+            logger.error(f"Failed to send verification email to: {user.email}")
+
+        return {"message": "Verification email sent successfully", "success": True}
+
+    except Exception as e:
+        await db.rollback()
+        logger.error(f"Error sending verification email: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to send verification email"
         )

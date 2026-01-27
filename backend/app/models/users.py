@@ -18,7 +18,7 @@ class User(Base):
     hashed_password = Column(String(1024), nullable=True, default=None)  # Nullable for users added by superuser
 
     # Status fields
-    verified = Column(Integer, default=0, nullable=False)  # tinyint(1): 0=False, 1=True
+    verified = Column(Integer, default=0, nullable=False)  # 0=unverified, 1=pending, 2=verified
     is_superuser = Column(Integer, default=0, nullable=False)  # tinyint(1): 0=False, 1=True
 
     # Password reset fields

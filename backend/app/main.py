@@ -1,5 +1,6 @@
 """Main FastAPI application."""
 import os
+import asyncio
 import logging
 from pathlib import Path
 from fastapi import FastAPI
@@ -14,6 +15,7 @@ from app.database.database import (
     ensure_database_exists,
     run_migrations,
 )
+from app.services.cleanup import cleanup_task_loop
  
 # Load environment variables before importing routers that may read env at import time
 ENV_FILE = load_project_env()
@@ -40,6 +42,7 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     """Application lifespan manager - runs on startup and shutdown."""
     logger.info("Starting application...")
+    cleanup_task = None
 
     try:
         # Allow tests/CI to skip DB initialization and migrations entirely
@@ -67,13 +70,25 @@ async def lifespan(app: FastAPI):
             run_migrations()
             logger.info("Migrations completed.")
 
+        # Start background cleanup task
+        # Run every hour (3600 seconds)
+        cleanup_task = asyncio.create_task(cleanup_task_loop(interval_seconds=3600))
+        logger.info("Background cleanup task started")
+
     except Exception:
         logger.exception("Failed to initialize database schema.")
         raise
 
     yield
 
+    # Shutdown: cancel background tasks
     logger.info("Shutting down application")
+    if cleanup_task:
+        cleanup_task.cancel()
+        try:
+            await cleanup_task
+        except asyncio.CancelledError:
+            logger.info("Cleanup task cancelled")
 
 
 # Create FastAPI app

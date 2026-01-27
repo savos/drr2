@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { authenticatedFetch } from '../utils/api';
-import './TeamsSelectionModal.css';
 
 function TeamsSelectionModal({ show, onClose, onSubmit }) {
   const [teams, setTeams] = useState([]);
@@ -150,39 +149,47 @@ function TeamsSelectionModal({ show, onClose, onSubmit }) {
   if (!show) return null;
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-        <div className="modal-header">
-          <h2>Select Microsoft Teams</h2>
-          <button className="modal-close" onClick={onClose}>×</button>
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onClick={onClose}>
+      <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[80vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between p-6 border-b border-gray-200">
+          <h2 className="text-xl font-semibold text-gray-900">Select Microsoft Teams</h2>
+          <button
+            className="text-gray-400 hover:text-gray-600 text-3xl font-light leading-none"
+            onClick={onClose}
+          >
+            ×
+          </button>
         </div>
 
-        <div className="modal-body">
+        <div className="flex-1 overflow-y-auto p-6">
           {loading ? (
-            <div className="modal-loading">
-              <span className="spinner"></span>
-              <p>Loading available teams...</p>
+            <div className="flex flex-col items-center justify-center py-12">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mb-4"></div>
+              <p className="text-gray-600">Loading available teams...</p>
             </div>
           ) : error ? (
-            <div className="modal-error">
-              <p>{error}</p>
-              <button className="btn btn-secondary" onClick={loadAvailableTeams}>
+            <div className="flex flex-col items-center justify-center py-12">
+              <p className="text-red-600 mb-4">{error}</p>
+              <button
+                className="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-lg transition-colors"
+                onClick={loadAvailableTeams}
+              >
                 Retry
               </button>
             </div>
           ) : teams.length === 0 ? (
-            <div className="modal-empty">
-              <p>No available teams found.</p>
-              <p className="hint-text">
+            <div className="flex flex-col items-center justify-center py-12">
+              <p className="text-gray-700 mb-2">No available teams found.</p>
+              <p className="text-sm text-gray-500">
                 Make sure you're a member of at least one Microsoft Team.
               </p>
             </div>
           ) : (
             <>
-              <p className="modal-description">
+              <p className="text-sm text-gray-600 mb-4">
                 Click on a team to expand and select individual channels to integrate.
               </p>
-              <div className="teams-list">
+              <div className="space-y-2">
                 {teams.map((team) => {
                   const isExpanded = expandedTeamIds.has(team.id);
                   const selectedCount = team.channels.filter(ch =>
@@ -192,34 +199,32 @@ function TeamsSelectionModal({ show, onClose, onSubmit }) {
                     selectedCount === team.channels.length;
 
                   return (
-                    <div key={team.id} className="team-item-wrapper">
-                      <div className="team-item">
+                    <div key={team.id} className="border border-gray-200 rounded-lg">
+                      <div className="flex items-center gap-3 p-4 hover:bg-gray-50 transition-colors">
                         <button
-                          className="team-expand-btn"
+                          className="text-gray-500 hover:text-gray-700 transition-transform"
                           onClick={() => toggleTeamExpanded(team.id)}
                         >
-                          <span className={`expand-icon ${isExpanded ? 'expanded' : ''}`}>
+                          <span className={`inline-block transition-transform ${isExpanded ? 'rotate-90' : ''}`}>
                             ▶
                           </span>
                         </button>
                         <div
-                          className="team-info"
+                          className="flex-1 cursor-pointer"
                           onClick={() => toggleTeamExpanded(team.id)}
                         >
-                          <div className="team-details">
-                            <div className="team-name">{team.name}</div>
-                            <div className="team-meta">
-                              {team.channels.length} channel{team.channels.length !== 1 ? 's' : ''}
-                              {selectedCount > 0 && ` • ${selectedCount} selected`}
-                            </div>
-                            {team.description && (
-                              <div className="team-description">{team.description}</div>
-                            )}
+                          <div className="font-medium text-gray-900">{team.name}</div>
+                          <div className="text-sm text-gray-500">
+                            {team.channels.length} channel{team.channels.length !== 1 ? 's' : ''}
+                            {selectedCount > 0 && ` • ${selectedCount} selected`}
                           </div>
+                          {team.description && (
+                            <div className="text-sm text-gray-600 mt-1">{team.description}</div>
+                          )}
                         </div>
                         {team.channels.length > 0 && (
                           <button
-                            className="select-all-btn"
+                            className="p-2"
                             onClick={(e) => {
                               e.stopPropagation();
                               toggleAllChannelsInTeam(team);
@@ -231,13 +236,14 @@ function TeamsSelectionModal({ show, onClose, onSubmit }) {
                               checked={allSelected}
                               onChange={() => {}}
                               onClick={(e) => e.stopPropagation()}
+                              className="w-4 h-4 text-purple-600 rounded"
                             />
                           </button>
                         )}
                       </div>
 
                       {isExpanded && team.channels.length > 0 && (
-                        <div className="channels-list">
+                        <div className="border-t border-gray-200 bg-gray-50">
                           {team.channels.map((channel) => {
                             const channelKey = `${team.id}:${channel.id}`;
                             const isSelected = selectedChannels.has(channelKey);
@@ -245,7 +251,9 @@ function TeamsSelectionModal({ show, onClose, onSubmit }) {
                             return (
                               <div
                                 key={channel.id}
-                                className={`channel-item ${isSelected ? 'selected' : ''}`}
+                                className={`flex items-center gap-3 p-3 hover:bg-gray-100 cursor-pointer transition-colors ${
+                                  isSelected ? 'bg-purple-50 hover:bg-purple-100' : ''
+                                }`}
                                 onClick={() => toggleChannel(team, channel)}
                               >
                                 <input
@@ -253,10 +261,13 @@ function TeamsSelectionModal({ show, onClose, onSubmit }) {
                                   checked={isSelected}
                                   onChange={() => toggleChannel(team, channel)}
                                   onClick={(e) => e.stopPropagation()}
+                                  className="w-4 h-4 text-purple-600 rounded ml-8"
                                 />
-                                <span className="channel-name">{channel.name}</span>
+                                <span className="flex-1 text-sm text-gray-900">{channel.name}</span>
                                 {channel.type === 'private' && (
-                                  <span className="channel-type-badge">Private</span>
+                                  <span className="px-2 py-1 text-xs bg-gray-200 text-gray-700 rounded">
+                                    Private
+                                  </span>
                                 )}
                               </div>
                             );
@@ -271,22 +282,22 @@ function TeamsSelectionModal({ show, onClose, onSubmit }) {
           )}
         </div>
 
-        <div className="modal-footer">
+        <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-200">
           <button
-            className="btn btn-secondary"
+            className="px-6 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             onClick={onClose}
             disabled={submitting}
           >
             Cancel
           </button>
           <button
-            className="btn btn-primary"
+            className="px-6 py-2 bg-purple-600 hover:bg-purple-700 text-white font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
             onClick={handleSubmit}
             disabled={submitting || loading || teams.length === 0 || selectedChannels.size === 0}
           >
             {submitting ? (
               <>
-                <span className="spinner-sm"></span>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
                 Adding...
               </>
             ) : (

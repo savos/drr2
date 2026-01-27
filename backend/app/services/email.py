@@ -5,6 +5,7 @@ import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from typing import Optional
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -14,19 +15,63 @@ class EmailService:
 
     def __init__(self):
         """Initialize email service with SMTP configuration."""
-        self.smtp_host = os.getenv("SMTP_HOST", "smtp.gmail.com")
+        # Support both SMTP_HOST and SMTP_SERVER for backward compatibility
+        self.smtp_host = os.getenv("SMTP_HOST") or os.getenv("SMTP_SERVER", "smtp.gmail.com")
         self.smtp_port = int(os.getenv("SMTP_PORT", "587"))
         self.smtp_user = os.getenv("SMTP_USER", "")
         self.smtp_password = os.getenv("SMTP_PASSWORD", "")
-        self.from_email = os.getenv("SMTP_FROM_EMAIL", self.smtp_user)
+        # Support both SMTP_FROM_EMAIL and SMTP_FROM
+        self.from_email = os.getenv("SMTP_FROM_EMAIL") or os.getenv("SMTP_FROM", self.smtp_user)
         self.from_name = os.getenv("SMTP_FROM_NAME", "Domain Renewal Reminder")
+
+        # Get the path to email templates
+        self.templates_dir = Path(__file__).parent / "email_templates"
 
         if not self.smtp_user or not self.smtp_password:
             logger.warning("SMTP credentials not configured - emails will not be sent")
+        else:
+            logger.info(f"Email service configured with SMTP host: {self.smtp_host}:{self.smtp_port}")
 
     def _is_configured(self) -> bool:
         """Check if email service is properly configured."""
         return bool(self.smtp_user and self.smtp_password)
+
+    def _load_template(self, template_name: str, **kwargs) -> tuple[str, str]:
+        """
+        Load email template and replace placeholders.
+
+        Args:
+            template_name: Name of the template file (without extension)
+            **kwargs: Variables to replace in the template
+
+        Returns:
+            Tuple of (html_body, text_body)
+        """
+        html_path = self.templates_dir / f"{template_name}.html"
+        text_path = self.templates_dir / f"{template_name}.txt"
+
+        try:
+            # Load HTML template
+            with open(html_path, 'r', encoding='utf-8') as f:
+                html_body = f.read()
+
+            # Load text template
+            text_body = ""
+            if text_path.exists():
+                with open(text_path, 'r', encoding='utf-8') as f:
+                    text_body = f.read()
+
+            # Replace placeholders (simple {{ variable }} style)
+            for key, value in kwargs.items():
+                placeholder = f"{{{{ {key} }}}}"
+                html_body = html_body.replace(placeholder, str(value))
+                text_body = text_body.replace(placeholder, str(value))
+
+            return html_body, text_body
+
+        except Exception as e:
+            logger.error(f"Failed to load template {template_name}: {e}")
+            raise
 
     def send_email(
         self,
@@ -100,65 +145,38 @@ class EmailService:
         """
         subject = "Reset Your Password - Domain Renewal Reminder"
 
-        html_body = f"""
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-</head>
-<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 10px 10px 0 0; text-align: center;">
-        <h1 style="color: white; margin: 0; font-size: 24px;">Password Reset Request</h1>
-    </div>
+        # Load template and replace variables
+        html_body, text_body = self._load_template(
+            "reset_password",
+            user_email=to_email,
+            reset_link=reset_url
+        )
 
-    <div style="background: #ffffff; padding: 30px; border: 1px solid #e0e0e0; border-top: none; border-radius: 0 0 10px 10px;">
-        <p style="margin-top: 0;">Hi {user_name},</p>
+        return self.send_email(to_email, subject, html_body, text_body)
 
-        <p>We received a request to reset your password for your Domain Renewal Reminder account.</p>
+    def send_verification_email(
+        self,
+        to_email: str,
+        verify_url: str
+    ) -> bool:
+        """
+        Send an email verification email.
 
-        <p>Click the button below to reset your password:</p>
+        Args:
+            to_email: Recipient email address
+            verify_url: URL for email verification (includes token)
 
-        <div style="text-align: center; margin: 30px 0;">
-            <a href="{reset_url}" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 14px 30px; text-decoration: none; border-radius: 8px; font-weight: 600; display: inline-block;">Reset Password</a>
-        </div>
+        Returns:
+            True if email was sent successfully
+        """
+        subject = "Verify Your Email - Domain Renewal Reminder"
 
-        <p style="color: #666; font-size: 14px;">This link will expire in <strong>1 hour</strong> for security reasons.</p>
-
-        <p style="color: #666; font-size: 14px;">If you didn't request a password reset, you can safely ignore this email. Your password will remain unchanged.</p>
-
-        <hr style="border: none; border-top: 1px solid #e0e0e0; margin: 30px 0;">
-
-        <p style="color: #999; font-size: 12px; margin-bottom: 0;">
-            If the button doesn't work, copy and paste this URL into your browser:<br>
-            <a href="{reset_url}" style="color: #667eea; word-break: break-all;">{reset_url}</a>
-        </p>
-    </div>
-
-    <div style="text-align: center; padding: 20px; color: #999; font-size: 12px;">
-        <p style="margin: 0;">Domain Renewal Reminder</p>
-        <p style="margin: 5px 0 0 0;">This is an automated message, please do not reply.</p>
-    </div>
-</body>
-</html>
-"""
-
-        text_body = f"""
-Hi {user_name},
-
-We received a request to reset your password for your Domain Renewal Reminder account.
-
-Click the link below to reset your password:
-{reset_url}
-
-This link will expire in 1 hour for security reasons.
-
-If you didn't request a password reset, you can safely ignore this email. Your password will remain unchanged.
-
----
-Domain Renewal Reminder
-This is an automated message, please do not reply.
-"""
+        # Load template and replace variables
+        html_body, text_body = self._load_template(
+            "verify_email",
+            user_email=to_email,
+            verify_link=verify_url
+        )
 
         return self.send_email(to_email, subject, html_body, text_body)
 

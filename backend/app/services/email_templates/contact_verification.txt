@@ -1,0 +1,28 @@
+Hello {{ contact_name }},
+
+You have been designated as the contact responsible for your organization's domain and SSL certificate renewals. Please confirm your email address by clicking the link below:
+{{ validation_link }}
+
+To receive push notifications for upcoming domain and SSL expirations, open this email on your mobile device and install the app:
+{{ pwa_link }}
+
+{% if telegram_bot_link %}
+TELEGRAM NOTIFICATIONS:
+You can also receive notifications via Telegram.
+
+Quick Setup (One Click):
+{{ telegram_deep_link }}
+
+Alternative link (if above doesn't work):
+{{ telegram_bot_link }}
+
+Or search for @domainrenewalreminder_bot in Telegram and click "Start".
+
+Once connected, you'll receive domain and SSL expiration reminders directly in Telegram.
+{% endif %}
+
+If you weren't expecting this message, you can safely ignore it.
+
+Kind regards,
+The Domain Renewal Reminder Team
+www.domainrenewalreminder.com

@@ -140,7 +140,8 @@ def validate_password_strength(password: str) -> tuple[bool, str]:
 
 
 # Password Reset Token Configuration
-RESET_TOKEN_EXPIRE_HOURS = 1  # Reset tokens expire after 1 hour
+RESET_TOKEN_EXPIRE_HOURS = 1  # Password reset tokens expire after 1 hour
+EMAIL_VERIFICATION_EXPIRE_HOURS = 24  # Email verification tokens expire after 24 hours
 
 
 def generate_reset_token() -> Tuple[str, str]:
@@ -193,12 +194,22 @@ def verify_reset_token(plain_token: str, hashed_token: str) -> bool:
 
 def get_reset_token_expiry() -> datetime:
     """
-    Get the expiration datetime for a new reset token.
+    Get the expiration datetime for a new password reset token (1 hour).
 
     Returns:
         Datetime when the token will expire
     """
     return datetime.now(timezone.utc) + timedelta(hours=RESET_TOKEN_EXPIRE_HOURS)
+
+
+def get_verification_token_expiry() -> datetime:
+    """
+    Get the expiration datetime for a new email verification token (24 hours).
+
+    Returns:
+        Datetime when the token will expire
+    """
+    return datetime.now(timezone.utc) + timedelta(hours=EMAIL_VERIFICATION_EXPIRE_HOURS)
 
 
 def is_reset_token_expired(expiry: Optional[datetime]) -> bool:

@@ -1,4 +1,7 @@
 import { useState, useEffect } from 'react';
+import { Icon } from '../utils/icons';
+import { AnimatedPage } from '../components/AnimatedPage';
+import { SkeletonTableRow } from '../components/Skeleton';
 
 function AddUser() {
   const [formData, setFormData] = useState({
@@ -19,14 +22,30 @@ function AddUser() {
   // Users list state
   const [users, setUsers] = useState([]);
   const [loadingUsers, setLoadingUsers] = useState(true);
-  const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [userToDelete, setUserToDelete] = useState(null);
+
+  // Resend verification modal state
+  const [showResendModal, setShowResendModal] = useState(false);
+  const [userToResend, setUserToResend] = useState(null);
 
   // Fetch users on mount
   useEffect(() => {
     fetchUsers();
   }, []);
+
+  // Poll for verification status updates every 10 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      // Only poll if there are users with pending verification
+      const hasPendingUsers = users.some(u => u.verified === 1);
+      if (hasPendingUsers) {
+        fetchUsers();
+      }
+    }, 10000); // Poll every 10 seconds
+
+    return () => clearInterval(interval);
+  }, [users]);
 
   const fetchUsers = async () => {
     try {
@@ -100,7 +119,6 @@ function AddUser() {
 
   // Open modal for adding new user - always start with blank form
   const openAddModal = () => {
-    // Explicitly clear all form data - never load from backend
     setFormData({
       firstname: '',
       lastname: '',
@@ -177,19 +195,91 @@ function AddUser() {
     }
   };
 
+  // Handle envelope click for email verification
+  const handleEnvelopeClick = async (user) => {
+    // verified: 0 = not verified (red), 1 = pending (orange), 2 = verified (green)
+    if (user.verified === 0 || user.verified === false) {
+      // Red envelope - send verification email immediately
+      const success = await sendVerificationEmail(user);
+      if (success) {
+        // Refresh users list to get updated status from database
+        await fetchUsers();
+      }
+    } else {
+      // Orange or green envelope - show confirmation dialog
+      setUserToResend(user);
+      setShowResendModal(true);
+    }
+  };
+
+  // Send verification email
+  const sendVerificationEmail = async (user) => {
+    try {
+      const token = localStorage.getItem('access_token');
+      const response = await fetch(`/api/users/${user.id}/send-verification`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (response.ok) {
+        setSuccess(`Verification email sent to ${user.email}`);
+        return true;
+      } else {
+        const data = await response.json();
+        setError(data.detail || 'Failed to send verification email');
+        return false;
+      }
+    } catch (err) {
+      setError('Error sending verification email');
+      console.error('Error:', err);
+      return false;
+    }
+  };
+
+  // Handle resend confirmation
+  const handleResendConfirm = async () => {
+    if (userToResend) {
+      const success = await sendVerificationEmail(userToResend);
+      if (success) {
+        // Refresh users list to get updated status from database
+        await fetchUsers();
+      }
+    }
+    setShowResendModal(false);
+    setUserToResend(null);
+  };
+
+  // Close resend modal
+  const closeResendModal = () => {
+    setShowResendModal(false);
+    setUserToResend(null);
+  };
+
+  // Get verification status info
+  const getVerificationStatus = (verified) => {
+    // verified: 0 = not verified, 1 = pending, 2 = verified
+    if (verified === 2) {
+      return { color: '#22c55e', text: 'verified', bgColor: '#f0fdf4' };
+    } else if (verified === 1) {
+      return { color: '#f97316', text: 'pending', bgColor: '#fff7ed' };
+    } else {
+      return { color: '#dc2626', text: 'verify', bgColor: '#fef2f2' };
+    }
+  };
+
   // Handle form submission
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     setSuccess('');
 
-    // Validate email
     if (!validateEmail(formData.email)) {
       setError('Please enter a valid email address');
       return;
     }
 
-    // Validate required fields
     if (!formData.firstname || !formData.lastname) {
       setError('Please fill in all required fields');
       return;
@@ -204,7 +294,6 @@ function AddUser() {
       }
 
       if (editingUserId) {
-        // Update existing user
         const updateData = {
           firstname: formData.firstname,
           lastname: formData.lastname,
@@ -232,7 +321,6 @@ function AddUser() {
         closeModal();
         fetchUsers();
       } else {
-        // Create new user (without password)
         const userStr = localStorage.getItem('user');
         if (!userStr) {
           throw new Error('User not authenticated');
@@ -282,36 +370,38 @@ function AddUser() {
     }
   };
 
-  // Check if form is valid for submission
   const isFormValid = () => {
     return formData.firstname && formData.lastname && emailValid;
   };
 
-  // Get current user ID to prevent self-deletion
   const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
 
   return (
-    <div className="teams-page">
+    <AnimatedPage>
+      <div className="teams-page">
       <div className="page-header">
         <h1>User Management</h1>
         <p className="subtitle">Manage users in your company</p>
       </div>
 
-      {error && !showModal && (
-        <div className="alert alert-error">
-          <span className="alert-icon">!</span>
-          <span>{error}</span>
-          <button className="alert-close" onClick={() => setError('')}>&times;</button>
-        </div>
-      )}
+      {/* Reserved space for alerts to prevent layout shift */}
+      <div style={{ minHeight: '60px', marginBottom: '0.5rem' }}>
+        {error && !showModal && (
+          <div className="alert alert-error">
+            <span className="alert-icon">!</span>
+            <span>{error}</span>
+            <button className="alert-close" onClick={() => setError('')}>&times;</button>
+          </div>
+        )}
 
-      {success && (
-        <div className="alert alert-success">
-          <span className="alert-icon">&#10003;</span>
-          <span>{success}</span>
-          <button className="alert-close" onClick={() => setSuccess('')}>&times;</button>
-        </div>
-      )}
+        {success && (
+          <div className="alert alert-success">
+            <span className="alert-icon">&#10003;</span>
+            <span>{success}</span>
+            <button className="alert-close" onClick={() => setSuccess('')}>&times;</button>
+          </div>
+        )}
+      </div>
 
       {/* Users Table */}
       <div className="setup-section">
@@ -323,13 +413,15 @@ function AddUser() {
         </div>
 
         {loadingUsers ? (
-          <div className="loading-state">
-            <div className="spinner"></div>
-            <p>Loading users...</p>
+          <div className="bg-white dark:bg-zinc-800 rounded-lg border border-zinc-200 dark:border-zinc-700">
+            <SkeletonTableRow columns={6} />
+            <SkeletonTableRow columns={6} />
+            <SkeletonTableRow columns={6} />
+            <SkeletonTableRow columns={6} />
           </div>
         ) : users.length === 0 ? (
           <div className="empty-state">
-            <div className="empty-icon">&#128100;</div>
+            <div className="empty-icon"><Icon name="users" variant="outline" size="xl" className="text-zinc-400 dark:text-zinc-600" /></div>
             <p>No users found. Click "Add User" to create one.</p>
           </div>
         ) : (
@@ -338,79 +430,108 @@ function AddUser() {
               <thead>
                 <tr style={{ borderBottom: '2px solid #e5e7eb', textAlign: 'left' }}>
                   <th style={{ padding: '12px 8px', fontWeight: '600', color: '#374151' }}>Name</th>
-                  <th style={{ padding: '12px 8px', fontWeight: '600', color: '#374151' }}>Email</th>
                   <th style={{ padding: '12px 8px', fontWeight: '600', color: '#374151' }}>Position</th>
+                  <th style={{ padding: '12px 8px', fontWeight: '600', color: '#374151' }}>Email</th>
+                  <th style={{ padding: '12px 8px', fontWeight: '600', color: '#374151' }}>Status</th>
                   <th style={{ padding: '12px 8px', fontWeight: '600', color: '#374151' }}>Role</th>
                   <th style={{ padding: '12px 8px', fontWeight: '600', color: '#374151', textAlign: 'right' }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {users.map((user) => (
-                  <tr
-                    key={user.id}
-                    style={{ borderBottom: '1px solid #e5e7eb' }}
-                  >
-                    <td style={{ padding: '12px 8px' }}>
-                      {user.firstname} {user.lastname}
-                      {user.id === currentUser.id && (
-                        <span style={{
-                          marginLeft: '8px',
-                          fontSize: '0.75rem',
-                          color: '#6366f1',
-                          fontWeight: '500'
-                        }}>(You)</span>
-                      )}
-                    </td>
-                    <td style={{ padding: '12px 8px', color: '#6b7280' }}>{user.email}</td>
-                    <td style={{ padding: '12px 8px', color: '#6b7280' }}>{user.position || '-'}</td>
-                    <td style={{ padding: '12px 8px' }}>
-                      <span className={`status-badge ${user.is_superuser ? 'status-active' : 'status-disabled'}`}>
-                        {user.is_superuser ? 'Superuser' : 'User'}
-                      </span>
-                    </td>
-                    <td style={{ padding: '12px 8px', textAlign: 'right' }}>
-                      <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', alignItems: 'center' }}>
+                {users.map((user) => {
+                  const verificationStatus = getVerificationStatus(user.verified);
+                  return (
+                    <tr
+                      key={user.id}
+                      style={{ borderBottom: '1px solid #e5e7eb' }}
+                    >
+                      <td style={{ padding: '12px 8px' }}>
+                        {user.firstname} {user.lastname}
+                        {user.id === currentUser.id && (
+                          <span style={{
+                            marginLeft: '8px',
+                            fontSize: '0.75rem',
+                            color: '#6366f1',
+                            fontWeight: '500'
+                          }}>(You)</span>
+                        )}
+                      </td>
+                      <td style={{ padding: '12px 8px', color: '#6b7280' }}>{user.position || '-'}</td>
+                      <td style={{ padding: '12px 8px', color: '#6b7280' }}>{user.email}</td>
+                      <td style={{ padding: '12px 8px' }}>
                         <button
-                          onClick={() => handleEdit(user)}
-                          title="Edit user"
+                          onClick={() => handleEnvelopeClick(user)}
+                          title={`Email ${verificationStatus.text}`}
                           style={{
                             background: 'none',
                             border: 'none',
                             cursor: 'pointer',
-                            padding: '4px',
+                            padding: '4px 8px',
                             display: 'flex',
                             alignItems: 'center',
-                            justifyContent: 'center'
+                            gap: '4px',
+                            borderRadius: '4px',
+                            backgroundColor: verificationStatus.bgColor
                           }}
                         >
-                          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6b7280" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path>
+                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={verificationStatus.color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+                            <polyline points="22,6 12,13 2,6"></polyline>
                           </svg>
+                          <span style={{ fontSize: '0.75rem', color: verificationStatus.color, fontWeight: '500' }}>
+                            {verificationStatus.text}
+                          </span>
                         </button>
-                        <button
-                          onClick={() => openDeleteModal(user)}
-                          disabled={user.id === currentUser.id}
-                          title={user.id === currentUser.id ? 'Cannot delete yourself' : 'Delete user'}
-                          style={{
-                            background: 'none',
-                            border: 'none',
-                            cursor: user.id === currentUser.id ? 'not-allowed' : 'pointer',
-                            padding: '4px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            opacity: user.id === currentUser.id ? 0.3 : 1
-                          }}
-                        >
-                          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <line x1="18" y1="6" x2="6" y2="18"></line>
-                            <line x1="6" y1="6" x2="18" y2="18"></line>
-                          </svg>
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                      </td>
+                      <td style={{ padding: '12px 8px' }}>
+                        <span className={`status-badge ${user.is_superuser ? 'status-active' : 'status-disabled'}`}>
+                          {user.is_superuser ? 'Superuser' : 'User'}
+                        </span>
+                      </td>
+                      <td style={{ padding: '12px 8px', textAlign: 'right' }}>
+                        <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', alignItems: 'center' }}>
+                          <button
+                            onClick={() => handleEdit(user)}
+                            title="Edit user"
+                            style={{
+                              background: 'none',
+                              border: 'none',
+                              cursor: 'pointer',
+                              padding: '4px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center'
+                            }}
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path>
+                            </svg>
+                          </button>
+                          <button
+                            onClick={() => openDeleteModal(user)}
+                            disabled={user.id === currentUser.id}
+                            title={user.id === currentUser.id ? 'Cannot delete yourself' : 'Delete user'}
+                            style={{
+                              background: 'none',
+                              border: 'none',
+                              cursor: user.id === currentUser.id ? 'not-allowed' : 'pointer',
+                              padding: '4px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              opacity: user.id === currentUser.id ? 0.3 : 1
+                            }}
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <line x1="18" y1="6" x2="6" y2="18"></line>
+                              <line x1="6" y1="6" x2="18" y2="18"></line>
+                            </svg>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -481,6 +602,76 @@ function AddUser() {
                   className="btn btn-danger"
                 >
                   Delete
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Resend Verification Email Modal */}
+      {showResendModal && userToResend && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+            padding: '1rem'
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) closeResendModal();
+          }}
+        >
+          <div
+            style={{
+              backgroundColor: 'white',
+              borderRadius: '12px',
+              width: '100%',
+              maxWidth: '400px',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)'
+            }}
+          >
+            <div style={{ padding: '1.5rem', textAlign: 'center' }}>
+              <div style={{
+                width: '48px',
+                height: '48px',
+                borderRadius: '50%',
+                backgroundColor: '#fef3c7',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                margin: '0 auto 1rem'
+              }}>
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+                  <polyline points="22,6 12,13 2,6"></polyline>
+                </svg>
+              </div>
+              <h3 style={{ margin: '0 0 0.5rem', fontSize: '1.125rem', fontWeight: '600' }}>
+                Resend Verification Email
+              </h3>
+              <p style={{ margin: '0 0 1.5rem', color: '#6b7280', fontSize: '0.875rem' }}>
+                Do you want to send verification email again to <strong>{userToResend.email}</strong>?
+              </p>
+              <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+                <button
+                  onClick={closeResendModal}
+                  className="btn btn-secondary"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleResendConfirm}
+                  className="btn btn-primary"
+                >
+                  Send Email
                 </button>
               </div>
             </div>
@@ -661,6 +852,7 @@ function AddUser() {
         </div>
       )}
     </div>
+    </AnimatedPage>
   );
 }
 

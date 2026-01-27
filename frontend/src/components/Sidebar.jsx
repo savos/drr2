@@ -1,8 +1,9 @@
 import { Link, useLocation } from 'react-router-dom';
 import { useState, useEffect } from 'react';
-import './Sidebar.css';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Icon } from '../utils/icons';
 
-function Sidebar() {
+function Sidebar({ isMobileOpen, onMobileClose }) {
   const location = useLocation();
   const [isSuperuser, setIsSuperuser] = useState(false);
 
@@ -18,6 +19,13 @@ function Sidebar() {
       }
     }
   }, []);
+
+  // Close mobile sidebar on route change
+  useEffect(() => {
+    if (isMobileOpen && onMobileClose) {
+      onMobileClose();
+    }
+  }, [location.pathname]);
 
   const isActive = (path) => {
     return location.pathname === path;
@@ -85,44 +93,96 @@ function Sidebar() {
     },
   ];
 
-  return (
-    <aside className="sidebar">
-      <div className="sidebar-content">
-        {menuSections.map((section, index) => {
-          // Filter links based on superuser status
-          const visibleLinks = section.links.filter(link => {
-            // If link requires superuser and user is not superuser, hide it
-            if (link.superuserOnly && !isSuperuser) {
-              return false;
-            }
-            return true;
-          });
-
-          // Only render section if it has visible links
-          if (visibleLinks.length === 0) {
-            return null;
+  const SidebarContent = () => (
+    <div className="py-6">
+      {menuSections.map((section, index) => {
+        // Filter links based on superuser status
+        const visibleLinks = section.links.filter(link => {
+          // If link requires superuser and user is not superuser, hide it
+          if (link.superuserOnly && !isSuperuser) {
+            return false;
           }
+          return true;
+        });
 
-          return (
-            <div key={index} className="sidebar-section">
-              <h3 className="section-title">{section.title}</h3>
-              <ul className="section-links">
-                {visibleLinks.map((link, linkIndex) => (
-                  <li key={linkIndex}>
-                    <Link
-                      to={link.path}
-                      className={`sidebar-link ${isActive(link.path) ? 'active' : ''}`}
-                    >
-                      {link.name}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          );
-        })}
-      </div>
-    </aside>
+        // Only render section if it has visible links
+        if (visibleLinks.length === 0) {
+          return null;
+        }
+
+        return (
+          <div key={index} className="mb-6">
+            <h3 className="px-6 mb-2 text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+              {section.title}
+            </h3>
+            <ul className="space-y-1 px-3">
+              {visibleLinks.map((link, linkIndex) => (
+                <li key={linkIndex}>
+                  <Link
+                    to={link.path}
+                    className={`block px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      isActive(link.path)
+                        ? 'bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-300'
+                        : 'text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-zinc-100'
+                    }`}
+                  >
+                    {link.name}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+        );
+      })}
+    </div>
+  );
+
+  return (
+    <>
+      {/* Desktop Sidebar - Always visible on large screens */}
+      <aside className="hidden lg:block w-64 bg-white dark:bg-zinc-900 border-r border-zinc-200 dark:border-zinc-800 h-[calc(100vh-73px)] overflow-y-auto">
+        <SidebarContent />
+      </aside>
+
+      {/* Mobile Sidebar - Overlay with backdrop */}
+      <AnimatePresence>
+        {isMobileOpen && (
+          <>
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="lg:hidden fixed inset-0 bg-black/50 backdrop-blur-sm z-40"
+              onClick={onMobileClose}
+            />
+
+            {/* Sidebar */}
+            <motion.aside
+              initial={{ x: -280 }}
+              animate={{ x: 0 }}
+              exit={{ x: -280 }}
+              transition={{ duration: 0.3, type: 'spring', damping: 30, stiffness: 300 }}
+              className="lg:hidden fixed left-0 top-0 bottom-0 w-64 bg-white dark:bg-zinc-900 border-r border-zinc-200 dark:border-zinc-800 z-50 overflow-y-auto shadow-depth-5"
+            >
+              {/* Close button */}
+              <div className="sticky top-0 bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 px-4 py-3 flex items-center justify-between z-10">
+                <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Menu</span>
+                <button
+                  onClick={onMobileClose}
+                  className="p-2 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+                  aria-label="Close menu"
+                >
+                  <Icon name="close" size="md" className="text-zinc-600 dark:text-zinc-400" />
+                </button>
+              </div>
+              <SidebarContent />
+            </motion.aside>
+          </>
+        )}
+      </AnimatePresence>
+    </>
   );
 }
 

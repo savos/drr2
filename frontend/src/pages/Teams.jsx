@@ -1,6 +1,9 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { authenticatedFetch } from '../utils/api';
+import { Icon } from '../utils/icons';
+import { AnimatedPage } from '../components/AnimatedPage';
+import { SkeletonCard } from '../components/Skeleton';
 import TeamsSelectionModal from '../components/TeamsSelectionModal';
 // Tailwind component mappings in index.css replace the old CSS file
 
@@ -22,10 +25,10 @@ function Teams() {
 
     if (success === 'true') {
       if (showTeamSelection === 'true') {
-        setSuccessMessage('✅ Teams connected! Select which teams to integrate.');
+        setSuccessMessage('Teams connected! Select which teams to integrate.');
         setShowTeamModal(true);
       } else {
-        setSuccessMessage('✅ Authorized with Microsoft Teams. Next, select teams and channels to receive notifications.');
+        setSuccessMessage('Authorized with Microsoft Teams. Next, select teams and channels to receive notifications.');
       }
       // Clear query params
       window.history.replaceState({}, document.title, window.location.pathname);
@@ -164,7 +167,7 @@ function Teams() {
   const handleTeamModalSubmit = (result) => {
     console.log('[Teams] Team modal submitted, result:', result);
     setShowTeamModal(false);
-    setSuccessMessage(`✅ Added ${result.added_count} channel integrations!`);
+    setSuccessMessage(`Added ${result.added_count} channel integrations!`);
     console.log('[Teams] Reloading integrations to show newly added channels...');
     loadIntegrations(); // Reload to show new integrations
   };
@@ -191,7 +194,8 @@ function Teams() {
   };
 
   return (
-    <div className="teams-page">
+    <AnimatedPage>
+      <div className="teams-page">
       <div className="page-header">
         <h1>Microsoft Teams Integration</h1>
         <p className="subtitle">Connect your Microsoft Teams account to receive domain and SSL certificate expiration notifications</p>
@@ -199,7 +203,7 @@ function Teams() {
 
       {error && (
         <div className="alert alert-error">
-          <span className="alert-icon">⚠️</span>
+          <span className="alert-icon"><Icon name="warning" variant="solid" size="sm" className="text-red-600" /></span>
           <span>{error}</span>
           <button className="alert-close" onClick={() => setError(null)}>×</button>
         </div>
@@ -207,7 +211,7 @@ function Teams() {
 
       {successMessage && (
         <div className="alert alert-success">
-          <span className="alert-icon">✅</span>
+          <span className="alert-icon"><Icon name="check" variant="solid" size="sm" className="text-emerald-600" /></span>
           <span>{successMessage}</span>
           <button className="alert-close" onClick={() => setSuccessMessage(null)}>×</button>
         </div>
@@ -216,7 +220,7 @@ function Teams() {
       {/* Account Requirement Warning */}
       <div className="account-warning-card">
         <div className="warning-header">
-          <span className="warning-icon">⚠️</span>
+          <span className="warning-icon"><Icon name="warning" variant="solid" size="lg" className="text-amber-600" /></span>
           <h3>Microsoft 365 Work/School Account Required</h3>
         </div>
         <p>
@@ -333,7 +337,7 @@ function Teams() {
             target="_blank"
             rel="noopener noreferrer"
           >
-            <span className="teams-icon">📧</span>
+            <Icon name="chat" size="md" className="text-white" />
             Connect Microsoft Teams
           </a>
           {!teamsStatus.personal_installed && teamsStatus.personal_deeplink && (
@@ -344,12 +348,12 @@ function Teams() {
               rel="noopener noreferrer"
               style={{ marginLeft: '1rem' }}
             >
-              ➕ Add DRR to Teams (DMs)
+              Add DRR to Teams (DMs)
             </a>
           )}
           {teamsStatus.personal_installed && (
             <span style={{ marginLeft: '1rem', color: '#059669', fontWeight: 500 }}>
-              ✅ DRR app installed for DMs
+              DRR app installed for DMs
             </span>
           )}
         </div>
@@ -359,13 +363,14 @@ function Teams() {
         <h2>Connected Chats</h2>
 
         {loading ? (
-          <div className="loading-state">
-            <span className="spinner"></span>
-            <p>Loading integrations...</p>
+          <div className="integrations-grid">
+            <SkeletonCard />
+            <SkeletonCard />
+            <SkeletonCard />
           </div>
         ) : integrations.length === 0 ? (
           <div className="empty-state">
-            <div className="empty-icon">📧</div>
+            <div className="empty-icon"><Icon name="envelope" variant="outline" size="xl" className="text-zinc-400 dark:text-zinc-600" /></div>
             <h3>No Connected Integrations</h3>
             <p>Connect your Microsoft Teams account to start receiving notifications.</p>
           </div>
@@ -430,7 +435,7 @@ function Teams() {
                       className="btn btn-danger btn-sm"
                       onClick={() => handleDeleteIntegration(integration.id)}
                     >
-                      🗑️ Disconnect
+                      Disconnect
                     </button>
                   </div>
                 </div>
@@ -447,6 +452,7 @@ function Teams() {
         onSubmit={handleTeamModalSubmit}
       />
     </div>
+    </AnimatedPage>
   );
 }
 

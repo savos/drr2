@@ -1,0 +1,13 @@
+Hi {{ user_email }},
+
+Thanks for registering for Domain Renewal Reminder.
+
+Please verify your email address by visiting the link below:
+{{ verify_link }}
+Verification link is valid 10 minutes.
+
+If you did not create an account, please ignore this email.
+
+Thanks,
+The Domain Renewal Reminder Team
+www.domainrenewalreminder.com

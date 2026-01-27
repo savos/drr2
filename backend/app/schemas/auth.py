@@ -117,3 +117,39 @@ class MessageResponse(BaseModel):
     """Generic message response."""
     message: str
     success: bool = True
+
+
+class VerificationResponse(BaseModel):
+    """Response for email verification."""
+    message: str
+    success: bool = True
+    needs_password: bool = False
+    verification_token: str | None = None
+
+
+class SetPasswordRequest(BaseModel):
+    """Schema for setting password after email verification."""
+    token: str = Field(..., min_length=1)
+    password: str = Field(..., min_length=8)
+
+    @field_validator("password")
+    @classmethod
+    def validate_password(cls, v: str) -> str:
+        """Validate password strength."""
+        if len(v) < 8:
+            raise ValueError("Password must be at least 8 characters long")
+
+        if not any(c.isupper() for c in v):
+            raise ValueError("Password must contain at least 1 uppercase letter")
+
+        if not any(c.islower() for c in v):
+            raise ValueError("Password must contain at least 1 lowercase letter")
+
+        if not any(c.isdigit() for c in v):
+            raise ValueError("Password must contain at least 1 number")
+
+        special_characters = "!@#$%^&*()_+-=[]{}|;:,.<>?"
+        if not any(c in special_characters for c in v):
+            raise ValueError("Password must contain at least 1 special character")
+
+        return v

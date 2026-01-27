@@ -5,155 +5,236 @@
 /* Global typography */
 @layer base {
   html { @apply antialiased; }
-  body { @apply bg-zinc-50 text-zinc-900; }
+  body {
+    @apply bg-zinc-50 text-zinc-900;
+    @apply dark:bg-zinc-900 dark:text-zinc-50;
+    @apply transition-colors duration-200;
+  }
 }
 
 /* Tailwind component mappings for legacy class names so page .css files become obsolete */
 @layer components {
   /* Page containers */
-  .teams-page, .slack-page, .discord-page, .telegram-page, .dashboard-home { @apply max-w-6xl mx-auto p-8; }
+  .teams-page, .slack-page, .discord-page, .telegram-page, .dashboard-home { @apply max-w-6xl mx-auto p-4 sm:p-8; }
 
   .page-header { @apply mb-8; }
-  .page-header h1 { @apply text-2xl font-bold text-zinc-900 mb-2; }
-  .page-header .subtitle { @apply text-zinc-600 text-base leading-6; }
+  .page-header h1 { @apply text-2xl font-bold text-zinc-900 dark:text-zinc-100 mb-2; }
+  .page-header .subtitle { @apply text-zinc-600 dark:text-zinc-400 text-base leading-6; }
+  .page-actions { @apply mt-4; }
 
   /* Alerts */
   .alert { @apply flex items-center gap-3 rounded-lg px-5 py-4 mb-6; }
   .alert-icon { @apply text-xl shrink-0; }
-  .alert-close { @apply ml-auto text-inherit opacity-60 hover:opacity-100 text-xl w-6 h-6 flex items-center justify-center bg-transparent border-0; }
-  .alert-error { @apply bg-red-50 border border-red-200 text-red-700; }
-  .alert-success { @apply bg-emerald-50 border border-emerald-200 text-emerald-700; }
+  .alert-close { @apply ml-auto text-inherit opacity-60 hover:opacity-100 text-xl w-6 h-6 flex items-center justify-center bg-transparent border-0 cursor-pointer transition-opacity; }
+  .alert-error { @apply bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300; }
+  .alert-success { @apply bg-emerald-50 dark:bg-emerald-950 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300; }
+
+  /* Warning cards */
+  .account-warning-card {
+    @apply bg-amber-50 dark:bg-amber-950 border-2 border-amber-200 dark:border-amber-800;
+    @apply rounded-lg p-6 mb-6 shadow-depth-1;
+  }
+  .warning-header {
+    @apply flex items-center gap-3 mb-3;
+  }
+  .warning-header h3 {
+    @apply text-lg font-semibold text-amber-900 dark:text-amber-200 m-0;
+  }
+  .warning-icon {
+    @apply text-2xl shrink-0;
+  }
+  .account-warning-card p {
+    @apply text-zinc-700 dark:text-zinc-300 leading-relaxed;
+  }
 
   /* Cards / sections */
-  .setup-section, .integrations-section, .dashboard-quick-actions { @apply bg-white rounded-xl p-8 mb-8 shadow-sm; }
-  .setup-section h2, .integrations-section h2 { @apply text-xl font-semibold mb-6; }
-  .instructions-card { @apply mb-6 p-6 bg-zinc-50 border border-zinc-200 rounded-lg; }
-  .instructions-card h3 { @apply text-xl font-semibold text-zinc-900; }
-  .instructions-card h4 { @apply text-base font-semibold text-zinc-900; }
-  .instructions-card code { @apply bg-zinc-100 text-red-600 rounded px-2 py-0.5 text-sm font-mono; }
+  .setup-section, .integrations-section, .dashboard-quick-actions {
+    @apply bg-white dark:bg-zinc-800 rounded-xl p-8 mb-8 shadow-depth-1;
+    @apply transition-shadow duration-200 hover:shadow-depth-2;
+  }
+  .setup-section h2, .integrations-section h2 { @apply text-xl font-semibold mb-6 dark:text-zinc-100; }
+  .instructions-card {
+    @apply mb-6 p-6 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg shadow-depth-1;
+  }
+  .instructions-card h3 { @apply text-xl font-semibold text-zinc-900 dark:text-zinc-100; }
+  .instructions-card h4 { @apply text-base font-semibold text-zinc-900 dark:text-zinc-100; }
+  .instructions-card code { @apply bg-zinc-100 dark:bg-zinc-800 text-red-600 dark:text-red-400 rounded px-2 py-0.5 text-sm font-mono; }
 
-  .instruction-step { @apply flex gap-6 mb-6 pb-6 border-b border-zinc-200; }
+  .instruction-step { @apply flex gap-6 mb-6 pb-6 border-b border-zinc-200 dark:border-zinc-700; }
   .instruction-step:last-child { @apply mb-0 pb-0 border-b-0; }
   .step-number { @apply shrink-0 w-10 h-10 rounded-full text-white flex items-center justify-center font-bold text-lg bg-gradient-to-br from-indigo-500 to-indigo-700; }
-  .step-content h3 { @apply text-lg font-semibold mb-2 text-zinc-900; }
-  .step-content p { @apply text-zinc-600 leading-7 m-0; }
+  .step-content h3 { @apply text-lg font-semibold mb-2 text-zinc-900 dark:text-zinc-100; }
+  .step-content p { @apply text-zinc-600 dark:text-zinc-400 leading-7 m-0; }
 
   /* Buttons */
-  .btn { @apply inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg text-base font-semibold transition no-underline; }
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg text-base font-semibold;
+    @apply transition-all duration-200 ease-out no-underline;
+  }
   .btn:disabled { @apply opacity-60 cursor-not-allowed; }
-  .btn-primary { @apply text-white bg-gradient-to-br from-indigo-500 to-indigo-700 shadow; }
-  .btn-primary:hover:not(:disabled) { @apply -translate-y-px shadow-md; }
-  .btn-secondary { @apply bg-white text-indigo-600 border-2 border-indigo-600; }
-  .btn-secondary:hover:not(:disabled) { @apply bg-indigo-50; }
-  .btn-danger { @apply bg-white text-red-600 border-2 border-red-600; }
-  .btn-danger:hover:not(:disabled) { @apply bg-red-50; }
+  .btn-primary {
+    @apply text-white bg-gradient-to-br from-indigo-500 to-indigo-700 shadow-depth-1;
+  }
+  .btn-primary:hover:not(:disabled) {
+    @apply -translate-y-0.5 shadow-depth-3;
+    @apply brightness-110;
+  }
+  .btn-primary:active:not(:disabled) {
+    @apply translate-y-0 shadow-depth-1 scale-[0.98];
+  }
+  .btn-secondary {
+    @apply bg-white dark:bg-zinc-800 text-indigo-600 dark:text-indigo-400 border-2 border-indigo-600 dark:border-indigo-500;
+  }
+  .btn-secondary:hover:not(:disabled) {
+    @apply bg-indigo-50 dark:bg-indigo-950 -translate-y-0.5 shadow-depth-1;
+  }
+  .btn-secondary:active:not(:disabled) {
+    @apply translate-y-0 scale-[0.98];
+  }
+  .btn-danger {
+    @apply bg-white dark:bg-zinc-800 text-red-600 dark:text-red-400 border-2 border-red-600 dark:border-red-500;
+  }
+  .btn-danger:hover:not(:disabled) {
+    @apply bg-red-50 dark:bg-red-950 -translate-y-0.5 shadow-depth-1;
+  }
+  .btn-danger:active:not(:disabled) {
+    @apply translate-y-0 scale-[0.98];
+  }
   .btn-sm { @apply px-4 py-2 text-sm; }
   .btn-large { @apply px-8 py-4 text-lg; }
   .connect-section { @apply text-center pt-4; }
   .teams-icon { @apply text-xl; }
+  .bot-info {
+    @apply mt-3 text-sm text-zinc-600 dark:text-zinc-400;
+  }
 
   /* Integrations grid/cards */
   .integrations-grid { @apply grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6; }
-  .integration-card { @apply border border-zinc-200 rounded-lg p-5 bg-white hover:shadow-sm transition; }
+  .integration-card {
+    @apply border border-zinc-200 dark:border-zinc-700 rounded-lg p-5;
+    @apply bg-white dark:bg-zinc-800 shadow-depth-1;
+    @apply transition-all duration-200 ease-out;
+  }
+  .integration-card:hover {
+    @apply -translate-y-1 shadow-depth-3;
+  }
   .integration-header { @apply flex items-center justify-between mb-4; }
-  .integration-info h3 { @apply text-lg font-semibold; }
-  .user-email { @apply text-sm text-zinc-500; }
-  .integration-meta { @apply grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm text-zinc-600 mb-4; }
-  .meta-item .meta-label { @apply font-medium text-zinc-500 mr-2; }
+  .integration-info h3 { @apply text-lg font-semibold dark:text-zinc-100; }
+  .user-email { @apply text-sm text-zinc-500 dark:text-zinc-400; }
+  .integration-meta { @apply grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm text-zinc-600 dark:text-zinc-400 mb-4; }
+  .meta-item .meta-label { @apply font-medium text-zinc-500 dark:text-zinc-500 mr-2; }
   .integration-actions { @apply flex items-center gap-3; }
 
   /* Status badges */
   .status-badge { @apply inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold; }
-  .status-disabled { @apply bg-zinc-100 text-zinc-600; }
-  .status-enabled { @apply bg-amber-100 text-amber-700; }
-  .status-active { @apply bg-emerald-100 text-emerald-700; }
+  .status-disabled { @apply bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400; }
+  .status-enabled { @apply bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400; }
+  .status-active { @apply bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400; }
 
   /* Loading / empty */
-  .loading-state, .empty-state { @apply text-center py-12 text-zinc-600; }
+  .loading-state, .empty-state { @apply text-center py-12 text-zinc-600 dark:text-zinc-400; }
   .loading-state .spinner { @apply w-10 h-10 mb-4; }
+  .empty-state h3 { @apply text-lg font-semibold text-zinc-900 dark:text-zinc-100 mb-2; }
+  .empty-state p { @apply text-zinc-600 dark:text-zinc-400; }
   .empty-icon { @apply text-5xl mb-4; }
 
   /* Dashboard */
   .dashboard-header { @apply mb-8; }
-  .dashboard-title { @apply text-2xl font-bold mb-2; }
-  .dashboard-subtitle { @apply text-zinc-600; }
+  .dashboard-title { @apply text-2xl font-bold mb-2 dark:text-zinc-100; }
+  .dashboard-subtitle { @apply text-zinc-600 dark:text-zinc-400; }
   .dashboard-stats { @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8; }
-  .stat-card { @apply bg-white border border-zinc-200 rounded-lg p-5 flex items-center gap-4; }
+  .stat-card {
+    @apply bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg p-5;
+    @apply flex items-center gap-4 shadow-depth-1;
+    @apply transition-all duration-200 ease-out;
+  }
+  .stat-card:hover {
+    @apply -translate-y-0.5 shadow-depth-2;
+  }
   .stat-icon { @apply text-2xl; }
-  .stat-value { @apply text-xl font-bold; }
-  .stat-label { @apply text-sm text-zinc-500; }
-  .section-title { @apply text-lg font-semibold mb-4; }
+  .stat-value { @apply text-xl font-bold dark:text-zinc-100; }
+  .stat-label { @apply text-sm text-zinc-500 dark:text-zinc-400; }
+  .section-title { @apply text-lg font-semibold mb-4 dark:text-zinc-100; }
   .quick-actions-grid { @apply grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4; }
-  .action-card { @apply border border-zinc-200 rounded-lg p-4 bg-white flex flex-col items-center gap-2 hover:shadow-sm transition no-underline text-inherit; }
+  .action-card {
+    @apply border border-zinc-200 dark:border-zinc-700 rounded-lg p-4;
+    @apply bg-white dark:bg-zinc-800 flex flex-col items-center gap-2;
+    @apply shadow-depth-1 transition-all duration-200 ease-out;
+    @apply no-underline text-inherit;
+  }
+  .action-card:hover {
+    @apply -translate-y-1 shadow-depth-3;
+    @apply border-indigo-300 dark:border-indigo-600;
+  }
   .action-icon { @apply text-xl; }
-  .action-text { @apply text-sm font-medium; }
+  .action-text { @apply text-sm font-medium dark:text-zinc-200; }
 
   /* Under Development */
-  .under-development { @apply min-h-[60vh] flex items-center justify-center bg-gradient-to-b from-zinc-50 to-white; }
+  .under-development { @apply min-h-[60vh] flex items-center justify-center bg-gradient-to-b from-zinc-50 to-white dark:from-zinc-900 dark:to-zinc-950; }
   .under-development-content { @apply text-center max-w-xl mx-auto p-8; }
-  .under-development-icon svg { @apply w-12 h-12 text-indigo-600 mx-auto mb-4; }
-  .under-development-domain { @apply text-sm text-zinc-500 mb-2; }
-  .under-development-title { @apply text-3xl font-bold mb-2; }
-  .under-development-subtitle { @apply text-zinc-600 mb-1; }
-  .under-development-coming-soon { @apply text-indigo-600 font-semibold; }
+  .under-development-icon svg { @apply w-12 h-12 text-indigo-600 dark:text-indigo-400 mx-auto mb-4; }
+  .under-development-domain { @apply text-sm text-zinc-500 dark:text-zinc-400 mb-2; }
+  .under-development-title { @apply text-3xl font-bold mb-2 dark:text-zinc-100; }
+  .under-development-subtitle { @apply text-zinc-600 dark:text-zinc-400 mb-1; }
+  .under-development-coming-soon { @apply text-indigo-600 dark:text-indigo-400 font-semibold; }
 
   /* Login / Sign In Page */
-  .login-container { @apply min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-50 via-white to-zinc-100 p-4; }
-  .login-card { @apply bg-white rounded-2xl shadow-xl p-8 w-full max-w-md border border-zinc-200; }
-  .login-card h1 { @apply text-2xl font-bold text-zinc-900 text-center mb-2; }
-  .login-subtitle { @apply text-zinc-500 text-center mb-6; }
+  .login-container { @apply min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-50 via-white to-zinc-100 dark:from-zinc-950 dark:via-zinc-900 dark:to-zinc-950 p-4; }
+  .login-card { @apply bg-white dark:bg-zinc-800 rounded-2xl shadow-depth-5 p-8 w-full max-w-md border border-zinc-200 dark:border-zinc-700; }
+  .login-card h1 { @apply text-2xl font-bold text-zinc-900 dark:text-zinc-100 text-center mb-2; }
+  .login-subtitle { @apply text-zinc-500 dark:text-zinc-400 text-center mb-6; }
   .login-form { @apply space-y-5; }
-  .login-footer { @apply mt-6 pt-6 border-t border-zinc-200 text-center text-sm text-zinc-600; }
-  .login-footer .link { @apply text-indigo-600 font-semibold hover:text-indigo-700 no-underline; }
+  .login-footer { @apply mt-6 pt-6 border-t border-zinc-200 dark:border-zinc-700 text-center text-sm text-zinc-600 dark:text-zinc-400; }
+  .login-footer .link { @apply text-indigo-600 dark:text-indigo-400 font-semibold hover:text-indigo-700 dark:hover:text-indigo-300 no-underline; }
   .forgot-password-link { @apply text-right text-sm mb-4; }
-  .forgot-password-link a { @apply text-indigo-600 hover:text-indigo-700 no-underline; }
+  .forgot-password-link a { @apply text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 no-underline; }
 
   /* Auth / Sign Up Page */
-  .auth-container { @apply min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-50 via-white to-zinc-100 p-4 py-12; }
-  .auth-card { @apply bg-white rounded-2xl shadow-xl p-8 w-full max-w-lg border border-zinc-200; }
-  .auth-card h1 { @apply text-2xl font-bold text-zinc-900 text-center mb-2; }
-  .auth-subtitle { @apply text-zinc-500 text-center mb-6; }
+  .auth-container { @apply min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-50 via-white to-zinc-100 dark:from-zinc-950 dark:via-zinc-900 dark:to-zinc-950 p-4 py-12; }
+  .auth-card { @apply bg-white dark:bg-zinc-800 rounded-2xl shadow-depth-5 p-8 w-full max-w-lg border border-zinc-200 dark:border-zinc-700; }
+  .auth-card h1 { @apply text-2xl font-bold text-zinc-900 dark:text-zinc-100 text-center mb-2; }
+  .auth-subtitle { @apply text-zinc-500 dark:text-zinc-400 text-center mb-6; }
   .auth-form { @apply space-y-5; }
 
   /* Form elements */
   .form-group { @apply flex flex-col; }
-  .form-group label { @apply text-sm font-medium text-zinc-700 mb-1.5; }
-  .form-group input { @apply px-4 py-3 border border-zinc-300 rounded-lg text-base transition-all duration-200 outline-none; }
-  .form-group input:focus { @apply border-indigo-500 ring-2 ring-indigo-100; }
-  .form-group input.valid { @apply border-emerald-500 bg-emerald-50; }
-  .form-group input.invalid { @apply border-red-500 bg-red-50; }
+  .form-group label { @apply text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1.5; }
+  .form-group input { @apply px-4 py-3 border border-zinc-300 dark:border-zinc-600 rounded-lg text-base bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 transition-all duration-200 outline-none; }
+  .form-group input:focus { @apply border-indigo-500 dark:border-indigo-400 ring-2 ring-indigo-100 dark:ring-indigo-900/50; }
+  .form-group input.valid { @apply border-emerald-500 dark:border-emerald-400 bg-emerald-50 dark:bg-emerald-900/20; }
+  .form-group input.invalid { @apply border-red-500 dark:border-red-400 bg-red-50 dark:bg-red-900/20; }
   .form-row { @apply grid grid-cols-1 sm:grid-cols-2 gap-4; }
   .form-actions { @apply flex gap-4 pt-4; }
   .form-actions .btn { @apply flex-1; }
 
   /* Error message */
-  .error-message { @apply bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-3 mb-4 text-sm; }
+  .error-message { @apply bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 rounded-lg px-4 py-3 mb-4 text-sm; }
 
   /* Validation messages */
   .validation-message { @apply text-xs mt-1.5 font-medium; }
-  .validation-message.success { @apply text-emerald-600; }
-  .validation-message.error { @apply text-red-600; }
+  .validation-message.success { @apply text-emerald-600 dark:text-emerald-400; }
+  .validation-message.error { @apply text-red-600 dark:text-red-400; }
 
   /* Password strength */
   .password-strength-container { @apply mt-2 min-h-[100px]; }
-  .strength-bar { @apply h-2 bg-zinc-200 rounded-full overflow-hidden mb-3; }
+  .strength-bar { @apply h-2 bg-zinc-200 dark:bg-zinc-700 rounded-full overflow-hidden mb-3; }
   .strength-bar .strength-fill { @apply h-full transition-all duration-300; }
-  .strength-bar.strength-weak .strength-fill { @apply w-1/3 bg-red-500; }
-  .strength-bar.strength-medium .strength-fill { @apply w-2/3 bg-amber-500; }
-  .strength-bar.strength-strong .strength-fill { @apply w-full bg-emerald-500; }
+  .strength-bar.strength-weak .strength-fill { @apply w-1/3 bg-red-500 dark:bg-red-400; }
+  .strength-bar.strength-medium .strength-fill { @apply w-2/3 bg-amber-500 dark:bg-amber-400; }
+  .strength-bar.strength-strong .strength-fill { @apply w-full bg-emerald-500 dark:bg-emerald-400; }
   .strength-checklist { @apply space-y-1 text-xs; }
-  .strength-checklist .check-passed { @apply text-emerald-600; }
-  .strength-checklist .check-failed { @apply text-zinc-400; }
-  .strength-placeholder { @apply text-xs text-zinc-400 italic; }
+  .strength-checklist .check-passed { @apply text-emerald-600 dark:text-emerald-400; }
+  .strength-checklist .check-failed { @apply text-zinc-400 dark:text-zinc-500; }
+  .strength-placeholder { @apply text-xs text-zinc-400 dark:text-zinc-500 italic; }
 
   /* Password match */
   .password-match-container { @apply mt-2 min-h-[24px]; }
-  .match-placeholder { @apply text-xs text-zinc-400 italic; }
+  .match-placeholder { @apply text-xs text-zinc-400 dark:text-zinc-500 italic; }
 
   /* Success/Error icons for auth pages */
-  .success-icon { @apply w-16 h-16 mx-auto mb-4 text-emerald-500; }
+  .success-icon { @apply w-16 h-16 mx-auto mb-4 text-emerald-500 dark:text-emerald-400; }
   .success-icon svg { @apply w-full h-full; }
-  .error-icon { @apply w-16 h-16 mx-auto mb-4 text-red-500; }
+  .error-icon { @apply w-16 h-16 mx-auto mb-4 text-red-500 dark:text-red-400; }
   .error-icon svg { @apply w-full h-full; }
-  .hint-text { @apply text-sm text-zinc-500 mt-4; }
+  .hint-text { @apply text-sm text-zinc-500 dark:text-zinc-400 mt-4; }
 }

@@ -50,7 +50,7 @@ class UserResponse(UserBase):
     """Schema for user response."""
     id: str
     company_id: str
-    verified: bool
+    verified: int  # 0=unverified, 1=pending, 2=verified
     is_superuser: bool
 
     # Notification channel status

@@ -18,6 +18,8 @@ from app.schemas.auth import (
     ForgotPasswordRequest,
     ResetPasswordRequest,
     MessageResponse,
+    VerificationResponse,
+    SetPasswordRequest,
 )
 from app.utils.security import (
     hash_password,
@@ -118,7 +120,7 @@ async def register(
                 "lastname": user.lastname,
                 "company_id": user.company_id,
                 "company_name": company.name,
-                "verified": bool(user.verified),
+                "verified": user.verified,  # 0=unverified, 1=pending, 2=verified
                 "is_superuser": bool(user.is_superuser),
             }
         )
@@ -198,7 +200,7 @@ async def login(
             "lastname": user.lastname,
             "company_id": user.company_id,
             "company_name": company.name if company else None,
-            "verified": bool(user.verified),
+            "verified": user.verified,  # 0=unverified, 1=pending, 2=verified
             "is_superuser": bool(user.is_superuser),
         }
     )
@@ -251,7 +253,7 @@ async def get_me(current_user: User = Depends(get_current_user)):
         "email": current_user.email,
         "firstname": current_user.firstname,
         "lastname": current_user.lastname,
-        "verified": bool(current_user.verified),
+        "verified": current_user.verified,  # 0=unverified, 1=pending, 2=verified
         "is_superuser": bool(current_user.is_superuser),
     }
 
@@ -430,3 +432,201 @@ async def verify_reset_token_endpoint(
     except Exception as e:
         logger.error(f"Error verifying reset token: {e}")
         return {"valid": False, "message": "Invalid or expired reset token"}
+
+
+@router.get("/verify-email", response_model=VerificationResponse, status_code=status.HTTP_200_OK)
+async def verify_email(
+    token: str,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Verify user's email address using token from email.
+
+    Security features:
+    - Token verification using constant-time comparison
+    - Token expiration check
+    - Token invalidation after use
+
+    Returns whether user needs to set a password (for users added by superuser).
+    """
+    try:
+        # Hash the incoming token and find user
+        from app.utils.security import hash_reset_token
+
+        incoming_token_hash = hash_reset_token(token)
+
+        result = await db.execute(
+            select(User).where(User.reset_token == incoming_token_hash)
+        )
+        user = result.scalar_one_or_none()
+
+        if not user:
+            # Token not found - check if user might already be verified
+            # This happens when user refreshes page or clicks link twice
+            logger.warning("Email verification attempted with invalid token")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid or expired verification token. If you already verified your email, please proceed to login or password creation."
+            )
+
+        # Check if token is expired
+        if is_reset_token_expired(user.reset_token_expires):
+            # Clear expired token
+            user.reset_token = None
+            user.reset_token_expires = None
+            await db.commit()
+
+            logger.warning(f"Email verification attempted with expired token for user: {user.email}")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid or expired verification token"
+            )
+
+        # Mark email as verified
+        user.verified = 2  # 2 = verified
+
+        # Check if user needs to set password (users added by superuser have no password)
+        needs_password = user.hashed_password is None
+
+        # Keep the token if user needs to set password, otherwise clear it
+        verification_token = None
+        if needs_password:
+            # Generate new token for password setting (valid for 24 hours)
+            from app.utils.security import generate_reset_token, get_verification_token_expiry
+            plain_token, hashed_token = generate_reset_token()
+            user.reset_token = hashed_token
+            user.reset_token_expires = get_verification_token_expiry()
+            verification_token = plain_token
+        else:
+            # Clear verification token (one-time use)
+            user.reset_token = None
+            user.reset_token_expires = None
+
+        await db.commit()
+
+        logger.info(f"Email successfully verified for user: {user.email}, needs_password: {needs_password}")
+
+        return VerificationResponse(
+            message="Your email has been verified successfully!",
+            success=True,
+            needs_password=needs_password,
+            verification_token=verification_token
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error in verify_email: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An error occurred while verifying your email"
+        )
+
+
+@router.post("/set-password", response_model=TokenResponse)
+async def set_password(
+    request: SetPasswordRequest,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Set password for verified user who doesn't have one yet (users added by superuser).
+
+    Security features:
+    - Token verification
+    - Email must be verified (verified=2)
+    - User must not already have a password
+    - Password strength validation
+    - Auto-login after password is set
+    """
+    try:
+        # Hash the incoming token and find user
+        from app.utils.security import hash_reset_token
+
+        incoming_token_hash = hash_reset_token(request.token)
+
+        result = await db.execute(
+            select(User).where(User.reset_token == incoming_token_hash)
+        )
+        user = result.scalar_one_or_none()
+
+        if not user:
+            logger.warning("Set password attempted with invalid token")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid or expired token"
+            )
+
+        # Check if token is expired
+        if is_reset_token_expired(user.reset_token_expires):
+            user.reset_token = None
+            user.reset_token_expires = None
+            await db.commit()
+
+            logger.warning(f"Set password attempted with expired token for user: {user.email}")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid or expired token"
+            )
+
+        # Check if user email is verified
+        if user.verified != 2:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Email must be verified before setting password"
+            )
+
+        # Check if user already has a password
+        if user.hashed_password is not None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="User already has a password"
+            )
+
+        # Validate password strength (already validated by Pydantic schema)
+        # Hash and set password
+        user.hashed_password = hash_password(request.password)
+
+        # Clear token (one-time use)
+        user.reset_token = None
+        user.reset_token_expires = None
+
+        await db.commit()
+        await db.refresh(user)
+
+        logger.info(f"Password successfully set for user: {user.email}")
+
+        # Get company information
+        result = await db.execute(
+            select(Company).where(Company.id == user.company_id)
+        )
+        company = result.scalar_one_or_none()
+
+        # Create access token for auto-login
+        access_token = create_access_token(
+            data={"sub": user.email, "user_id": user.id},
+            expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        )
+
+        return TokenResponse(
+            access_token=access_token,
+            token_type="bearer",
+            user={
+                "id": user.id,
+                "email": user.email,
+                "firstname": user.firstname,
+                "lastname": user.lastname,
+                "company_id": user.company_id,
+                "company_name": company.name if company else None,
+                "verified": user.verified,
+                "is_superuser": bool(user.is_superuser),
+            }
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error in set_password: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An error occurred while setting your password"
+        )

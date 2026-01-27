@@ -1,6 +1,9 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { authenticatedFetch } from '../utils/api';
+import { Icon } from '../utils/icons';
+import { AnimatedPage } from '../components/AnimatedPage';
+import { SkeletonCard } from '../components/Skeleton';
 // Tailwind component mappings in index.css replace the old CSS file
 
 function Telegram() {
@@ -31,7 +34,7 @@ function Telegram() {
           });
 
           if (response.ok) {
-            setSuccessMessage('✅ Connection confirmed and activated!');
+            setSuccessMessage('Connection confirmed and activated!');
             loadIntegrations();
           }
         } catch (err) {
@@ -173,7 +176,8 @@ function Telegram() {
   };
 
   return (
-    <div className="telegram-page">
+    <AnimatedPage>
+      <div className="telegram-page">
       <div className="page-header">
         <h1>Telegram Integration</h1>
         <p className="subtitle">Connect your Telegram account to receive domain and SSL certificate expiration notifications</p>
@@ -186,7 +190,7 @@ function Telegram() {
 
       {error && (
         <div className="alert alert-error">
-          <span className="alert-icon">⚠️</span>
+          <span className="alert-icon"><Icon name="warning" variant="solid" size="sm" className="text-red-600" /></span>
           <span>{error}</span>
           <button className="alert-close" onClick={() => setError(null)}>×</button>
         </div>
@@ -194,7 +198,7 @@ function Telegram() {
 
       {successMessage && (
         <div className="alert alert-success">
-          <span className="alert-icon">✅</span>
+          <span className="alert-icon"><Icon name="check" variant="solid" size="sm" className="text-emerald-600" /></span>
           <span>{successMessage}</span>
           <button className="alert-close" onClick={() => setSuccessMessage(null)}>×</button>
         </div>
@@ -204,7 +208,7 @@ function Telegram() {
         <h2>How to Set Up Telegram Integration</h2>
 
         <div className="instructions-card">
-          <h3 style={{ marginBottom: '1rem', color: '#2563eb' }}>📱 Direct Message Setup</h3>
+          <h3 style={{ marginBottom: '1rem', color: '#2563eb' }}>Direct Message Setup</h3>
 
           <div className="instruction-step">
             <div className="step-number">1</div>
@@ -232,7 +236,7 @@ function Telegram() {
         </div>
 
         <div className="instructions-card" style={{ marginTop: '1.5rem' }}>
-          <h3 style={{ marginBottom: '1rem', color: '#2563eb' }}>👥 Group/Channel Setup (Optional)</h3>
+          <h3 style={{ marginBottom: '1rem', color: '#2563eb' }}>Group/Channel Setup (Optional)</h3>
 
           <div style={{ padding: '0.75rem 1rem', backgroundColor: '#fef3c7', borderRadius: '8px', marginBottom: '1rem', border: '1px solid #fbbf24' }}>
             <p style={{ margin: 0, color: '#92400e', fontSize: '0.9rem' }}>
@@ -299,7 +303,7 @@ function Telegram() {
             target="_blank"
             rel="noopener noreferrer"
           >
-            <span className="telegram-icon">📱</span>
+            <Icon name="chat" size="md" className="text-white" />
             Connect Telegram
           </a>
           {botName && (
@@ -314,13 +318,14 @@ function Telegram() {
         <h2>Connected Chats</h2>
 
         {loading ? (
-          <div className="loading-state">
-            <span className="spinner"></span>
-            <p>Loading integrations...</p>
+          <div className="integrations-grid">
+            <SkeletonCard />
+            <SkeletonCard />
+            <SkeletonCard />
           </div>
         ) : integrations.length === 0 ? (
           <div className="empty-state">
-            <div className="empty-icon">💬</div>
+            <div className="empty-icon"><Icon name="chat" variant="outline" size="xl" className="text-zinc-400 dark:text-zinc-600" /></div>
             <h3>No Connected Chats</h3>
             <p>Connect your Telegram account to start receiving notifications.</p>
           </div>
@@ -398,6 +403,7 @@ function Telegram() {
         )}
       </div>
     </div>
+    </AnimatedPage>
   );
 }
 

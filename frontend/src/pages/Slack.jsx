@@ -1,6 +1,9 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { authenticatedFetch } from '../utils/api';
+import { Icon } from '../utils/icons';
+import { AnimatedPage } from '../components/AnimatedPage';
+import { SkeletonCard } from '../components/Skeleton';
 import SlackChannelSelectionModal from '../components/SlackChannelSelectionModal';
 // Tailwind component mappings in index.css replace the old CSS file
 
@@ -37,7 +40,7 @@ function Slack() {
               method: 'POST'
             });
             if (resp.ok) {
-              setSuccessMessage('✅ Slack DM verified and integration activated.');
+              setSuccessMessage('Slack DM verified and integration activated.');
               // Clear stored token and URL params
               localStorage.removeItem(`slack_verify_token::${verifiedIntegrationId}`);
               loadIntegrations();
@@ -223,15 +226,16 @@ function Slack() {
   };
 
   return (
-    <div className="slack-page">
-      <div className="page-header">
+    <AnimatedPage>
+      <div className="slack-page">
+        <div className="page-header">
         <h1>Slack Integration</h1>
         <p className="subtitle">Connect your Slack workspace to receive domain and SSL certificate expiration notifications</p>
       </div>
 
       {error && (
         <div className="alert alert-error">
-          <span className="alert-icon">⚠️</span>
+          <span className="alert-icon"><Icon name="warning" variant="solid" size="sm" className="text-red-600" /></span>
           <span>{error}</span>
           <button className="alert-close" onClick={() => setError(null)}>×</button>
         </div>
@@ -239,7 +243,7 @@ function Slack() {
 
       {successMessage && (
         <div className="alert alert-success">
-          <span className="alert-icon">✅</span>
+          <span className="alert-icon"><Icon name="check" variant="solid" size="sm" className="text-emerald-600" /></span>
           <span>{successMessage}</span>
           <button className="alert-close" onClick={() => setSuccessMessage(null)}>×</button>
         </div>
@@ -314,9 +318,10 @@ function Slack() {
         <h2>Connected Workspaces</h2>
 
         {loading ? (
-          <div className="loading-state">
-            <span className="spinner"></span>
-            <p>Loading integrations...</p>
+          <div className="integrations-grid">
+            <SkeletonCard />
+            <SkeletonCard />
+            <SkeletonCard />
           </div>
         ) : integrations.length === 0 ? (
           <div className="empty-state">
@@ -401,6 +406,7 @@ function Slack() {
         workspaceId={selectedWorkspaceId}
       />
     </div>
+    </AnimatedPage>
   );
 }
 
