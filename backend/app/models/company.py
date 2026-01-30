@@ -20,6 +20,7 @@ class Company(Base):
     # Relationships
     users = relationship("User", back_populates="company")
     price_plan = relationship("Pricing", back_populates="companies")
+    domains = relationship("Domain", back_populates="company", cascade="all, delete-orphan")
 
     def __repr__(self):
         return f"<Company(name={self.name})>"

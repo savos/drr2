@@ -5,6 +5,9 @@ import Discord from './Discord';
 import Teams from './Teams';
 import Email from './Email';
 import Solutions from './Solutions';
+import AddDomain from './AddDomain';
+import AddSSL from './AddSSL';
+import StatusMonitor from './StatusMonitor';
 
 // Account Pages
 export function PlanPage() {
@@ -25,19 +28,15 @@ export function UserMonitorPage() {
 
 // Domain Pages
 export function AddDomainPage() {
-  return <StubPage title="Add Domain" description="Add a new domain to monitor for expiration dates." />;
+  return <AddDomain />;
 }
 
 export function AddSSLPage() {
-  return <StubPage title="Add SSL" description="Add a new SSL certificate to monitor for expiration dates." />;
+  return <AddSSL />;
 }
 
-export function DomainMonitorPage() {
-  return <StubPage title="Domain Monitor" description="View and manage all your monitored domains." />;
-}
-
-export function SSLMonitorPage() {
-  return <StubPage title="SSL Monitor" description="View and manage all your monitored SSL certificates." />;
+export function StatusMonitorPage() {
+  return <StatusMonitor />;
 }
 
 // Channel Pages

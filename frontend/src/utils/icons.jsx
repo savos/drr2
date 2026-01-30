@@ -28,6 +28,9 @@ import {
   BoltIcon,
   CalendarIcon,
   ClipboardDocumentListIcon,
+  ChevronUpIcon,
+  ChevronDownIcon,
+  ChevronUpDownIcon,
 } from '@heroicons/react/24/outline';
 
 import {
@@ -60,6 +63,9 @@ import {
   BoltIcon as BoltIconSolid,
   CalendarIcon as CalendarIconSolid,
   ClipboardDocumentListIcon as ClipboardDocumentListIconSolid,
+  ChevronUpIcon as ChevronUpIconSolid,
+  ChevronDownIcon as ChevronDownIconSolid,
+  ChevronUpDownIcon as ChevronUpDownIconSolid,
 } from '@heroicons/react/24/solid';
 
 export const icons = {
@@ -93,6 +99,9 @@ export const icons = {
     bolt: BoltIcon,
     calendar: CalendarIcon,
     clipboard: ClipboardDocumentListIcon,
+    chevronUp: ChevronUpIcon,
+    chevronDown: ChevronDownIcon,
+    chevronUpDown: ChevronUpDownIcon,
   },
   solid: {
     globe: GlobeAltIconSolid,
@@ -124,6 +133,9 @@ export const icons = {
     bolt: BoltIconSolid,
     calendar: CalendarIconSolid,
     clipboard: ClipboardDocumentListIconSolid,
+    chevronUp: ChevronUpIconSolid,
+    chevronDown: ChevronDownIconSolid,
+    chevronUpDown: ChevronUpDownIconSolid,
   }
 };
 

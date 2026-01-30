@@ -47,8 +47,7 @@ function Sidebar({ isMobileOpen, onMobileClose }) {
       links: [
         { name: 'Add Domain', path: '/dashboard/add-domain', superuserOnly: true },
         { name: 'Add SSL', path: '/dashboard/add-ssl', superuserOnly: true },
-        { name: 'Domain Monitor', path: '/dashboard/domain-monitor' },
-        { name: 'SSL Monitor', path: '/dashboard/ssl-monitor' },
+        { name: 'Status Monitor', path: '/dashboard/status-monitor' },
       ]
     },
     {

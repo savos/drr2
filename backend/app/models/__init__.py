@@ -9,9 +9,10 @@ from app.models.telegram import Telegram, TelegramDMConnection
 from app.models.discord import Discord
 from app.models.teams import Teams
 from app.models.teams_conversation import TeamsConversation
+from app.models.domain import Domain, DomainType
 
 __all__ = [
     "Company", "User", "Pricing", "Case", "CaseLink",
     "Slack", "Telegram", "TelegramDMConnection", "Discord",
-    "Teams", "TeamsConversation",
+    "Teams", "TeamsConversation", "Domain", "DomainType",
 ]

@@ -21,8 +21,7 @@ import {
   UserMonitorPage,
   AddDomainPage,
   AddSSLPage,
-  DomainMonitorPage,
-  SSLMonitorPage,
+  StatusMonitorPage,
   EmailChannelPage,
   PushNotificationsPage,
   SlackChannelPage,
@@ -161,8 +160,7 @@ function App() {
                 <AddSSLPage />
               </SuperuserRoute>
             } />
-            <Route path="domain-monitor" element={<DomainMonitorPage />} />
-            <Route path="ssl-monitor" element={<SSLMonitorPage />} />
+            <Route path="status-monitor" element={<StatusMonitorPage />} />
 
             {/* Channel Routes */}
             <Route path="channels/email" element={<EmailChannelPage />} />
