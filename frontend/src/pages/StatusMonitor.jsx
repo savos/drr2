@@ -294,7 +294,7 @@ function StatusMonitor() {
                       className="p-3 font-semibold text-zinc-700 dark:text-zinc-300 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-700/50"
                       onClick={() => handleSslSort('name')}
                     >
-                      Domain/IP
+                      Domain
                       <SortIcon field="name" currentField={sslSortField} currentDirection={sslSortDirection} />
                     </th>
                     <th

@@ -163,18 +163,18 @@ function AddSSL() {
           <h2>Add New SSL Certificate</h2>
           <form onSubmit={handleSubmit} className="max-w-2xl">
             <div className="form-group">
-              <label htmlFor="sslName">Domain or IP Address</label>
+              <label htmlFor="sslName">Domain or SubDomain</label>
               <input
                 type="text"
                 id="sslName"
                 value={sslName}
                 onChange={(e) => setSslName(e.target.value)}
-                placeholder="example.com or 192.168.1.1"
+                placeholder="example.com or sub.example.com"
                 disabled={submitting}
                 className="w-full"
               />
               <p className="text-sm text-zinc-600 dark:text-zinc-400 mt-2">
-                Enter a domain name (subdomain), or IP address. We'll automatically retrieve SSL certificate information on port 443.
+                Enter a domain name or subdomain. We'll automatically retrieve SSL certificate information on port 443.
               </p>
             </div>
 
@@ -223,7 +223,7 @@ function AddSSL() {
               <table className="w-full border-collapse">
                 <thead>
                   <tr className="border-b-2 border-zinc-200 dark:border-zinc-700 text-left">
-                    <th className="p-3 font-semibold text-zinc-700 dark:text-zinc-300">Domain/IP</th>
+                    <th className="p-3 font-semibold text-zinc-700 dark:text-zinc-300">Domain</th>
                     <th className="p-3 font-semibold text-zinc-700 dark:text-zinc-300">Issuer</th>
                     <th className="p-3 font-semibold text-zinc-700 dark:text-zinc-300">Valid From</th>
                     <th className="p-3 font-semibold text-zinc-700 dark:text-zinc-300">Expiration Date</th>

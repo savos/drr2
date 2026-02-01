@@ -26,7 +26,7 @@ class AddDomainRequest(BaseModel):
 
 class AddSSLRequest(BaseModel):
     """Schema for adding an SSL certificate."""
-    name: str = Field(..., max_length=256, description="Domain name or IP address")
+    name: str = Field(..., max_length=256, description="Domain name or subdomain")
 
 
 @router.post("/add-domain", response_model=DomainResponse, status_code=status.HTTP_201_CREATED)
