@@ -92,18 +92,19 @@ async def lifespan(app: FastAPI):
             logger.info("Cleanup task cancelled")
 
 
-# Create FastAPI app
+# CORS Configuration
+environment = os.getenv("ENVIRONMENT", "DEV").upper()
+
+# Create FastAPI app — disable API docs in production
 app = FastAPI(
     title="FastAPI React App",
     description="A minimal FastAPI + React application stub",
     version="1.0.0",
-    docs_url="/docs",
-    redoc_url="/redoc",
+    docs_url="/docs" if environment == "DEV" else None,
+    redoc_url="/redoc" if environment == "DEV" else None,
+    openapi_url="/openapi.json" if environment == "DEV" else None,
     lifespan=lifespan,
 )
-
-# CORS Configuration
-environment = os.getenv("ENVIRONMENT", "DEV").upper()
 
 if environment == "DEV":
     # In development, allow all origins

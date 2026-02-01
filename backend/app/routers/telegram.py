@@ -11,7 +11,7 @@ from app.database.database import get_db
 from app.models.users import User
 from app.models.telegram import TelegramStatus, TelegramChatType
 from app.schemas.telegram import TelegramRead
-from app.utils.security import get_current_user
+from app.utils.security import get_current_user, get_current_superuser
 from app.consumers.telegram import telegram_consumer, TelegramAPIError
 from app.services.telegram import telegram_service
 
@@ -332,69 +332,11 @@ async def verify_integration(
         )
 
 
-@router.post("/webhook")
-async def telegram_webhook(
-    request: Request,
-    db: AsyncSession = Depends(get_db)
-):
-    """
-    Handle incoming Telegram webhook updates.
-
-    This endpoint receives updates from Telegram when:
-    - User sends a message to the bot
-    - Bot is added to a group
-    - Bot is removed from a group
-
-    Args:
-        request: FastAPI request object containing webhook payload
-        db: Database session
-
-    Returns:
-        Success response
-    """
-    try:
-        # Get webhook payload
-        update = await request.json()
-        try:
-            logger.info("Telegram webhook: received update keys=%s", list(update.keys()))
-        except Exception:
-            logger.exception("Telegram webhook: failed to log update")
-
-        # Parse the update
-        parsed = telegram_consumer.parse_update(update)
-
-        if not parsed:
-            logger.info("Telegram webhook: update not relevant, ignoring")
-            return JSONResponse({"ok": True})
-
-        update_type = parsed.get("type")
-
-        # Handle regular message (user sending /start or any message to bot)
-        if update_type == "message":
-            logger.info("Telegram webhook: type=message")
-            await handle_message(db, parsed)
-
-        # Handle bot added to group
-        elif update_type == "bot_added_to_chat":
-            logger.info("Telegram webhook: type=bot_added_to_chat chat=%s", parsed.get("chat", {}))
-            await handle_bot_added_to_chat(db, parsed)
-
-        # Handle bot removed from group
-        elif update_type == "bot_removed_from_chat":
-            logger.info("Telegram webhook: type=bot_removed_from_chat chat=%s", parsed.get("chat", {}))
-            await handle_bot_removed_from_chat(db, parsed)
-
-        return JSONResponse({"ok": True})
-
-    except Exception as e:
-        logger.exception(f"Error handling Telegram webhook: {e}")
-        # Return 200 OK even on error to prevent Telegram from retrying
-        return JSONResponse({"ok": True})
-
-
 @router.post("/webhook/set")
-async def set_telegram_webhook():
-    """Convenience endpoint to set Telegram webhook to the public URL."""
+async def set_telegram_webhook(
+    current_user: User = Depends(get_current_superuser)
+):
+    """Convenience endpoint to set Telegram webhook to the public URL (superuser only)."""
     public_base = os.getenv("FRONTEND_URL")
     if not public_base:
         raise HTTPException(status_code=500, detail="FRONTEND_URL not configured")
@@ -656,9 +598,11 @@ async def handle_stop_command(db: AsyncSession, chat_id: int, telegram_user_id: 
 
 
 @router.get("/webhook/info", response_model=WebhookInfoResponse)
-async def get_webhook_info():
+async def get_webhook_info(
+    current_user: User = Depends(get_current_superuser)
+):
     """
-    Get current Telegram webhook information.
+    Get current Telegram webhook information (superuser only).
 
     Returns:
         Webhook status and configuration
@@ -683,9 +627,11 @@ async def get_webhook_info():
 
 
 @router.get("/bot/info")
-async def get_bot_info():
+async def get_bot_info(
+    current_user: User = Depends(get_current_superuser)
+):
     """
-    Get Telegram bot information.
+    Get Telegram bot information (superuser only).
 
     Returns:
         Bot username, name, and other details
@@ -744,6 +690,29 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
     except Exception:
         update = {}
 
-    # Minimal scaffold: acknowledge; extend to handle messages/joins if needed
-    logger.info("Telegram webhook received update type=%s", update.get("message", {}).get("chat", {}).get("type") if update else None)
+    try:
+        logger.info("Telegram webhook: received update keys=%s", list(update.keys()) if update else [])
+
+        parsed = telegram_consumer.parse_update(update)
+
+        if not parsed:
+            logger.info("Telegram webhook: update not relevant, ignoring")
+            return JSONResponse(content={"ok": True})
+
+        update_type = parsed.get("type")
+
+        if update_type == "message":
+            logger.info("Telegram webhook: type=message")
+            await handle_message(db, parsed)
+        elif update_type == "bot_added_to_chat":
+            logger.info("Telegram webhook: type=bot_added_to_chat chat=%s", parsed.get("chat", {}))
+            await handle_bot_added_to_chat(db, parsed)
+        elif update_type == "bot_removed_from_chat":
+            logger.info("Telegram webhook: type=bot_removed_from_chat chat=%s", parsed.get("chat", {}))
+            await handle_bot_removed_from_chat(db, parsed)
+
+    except Exception as e:
+        logger.exception(f"Error handling Telegram webhook: {e}")
+        # Return 200 OK even on error to prevent Telegram from retrying
+
     return JSONResponse(content={"ok": True})

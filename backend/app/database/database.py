@@ -1,5 +1,6 @@
 """Database connection and session management."""
 import os
+import re
 import logging
 import time
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
@@ -18,13 +19,18 @@ DB_PORT = os.getenv("DB_PORT", "3306")
 DB_NAME = os.getenv("DB_NAME", "app_db")
 DB_ROOT_PASSWORD = os.getenv("DB_ROOT_PASSWORD", "root")
 
+# Validate DB_NAME to prevent SQL injection via environment variable
+if not re.match(r'^[a-zA-Z0-9_-]+$', DB_NAME):
+    raise ValueError(f"DB_NAME contains invalid characters: '{DB_NAME}'. Only alphanumeric, underscore, and hyphen are allowed.")
+
 # Create async database URL
 DATABASE_URL = f"mysql+aiomysql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
 
-# Create async engine
+# Create async engine — only log queries in DEV
+_environment = os.getenv("ENVIRONMENT", "DEV").upper()
 engine = create_async_engine(
     DATABASE_URL,
-    echo=True,
+    echo=(_environment == "DEV"),
     pool_pre_ping=True,
 )
 

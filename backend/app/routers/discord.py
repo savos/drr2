@@ -6,7 +6,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, status, Query, Request
 from fastapi.responses import RedirectResponse, JSONResponse
 from urllib.parse import urlparse
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel
 
@@ -300,12 +300,7 @@ async def discord_events(request: Request, db: AsyncSession = Depends(get_db)):
     except Exception:
         payload = {}
 
-    # URL verification challenge (respond immediately)
-    if payload.get("type") == "url_verification":
-        logger.info("Discord events: url_verification received, responding with challenge")
-        return JSONResponse(content={"challenge": payload.get("challenge", "")})
-
-    # Verify signature for event callbacks
+    # Verify signature for all requests including url_verification
     signing_secret = os.getenv("DISCORD_SIGNING_SECRET")
     if not signing_secret:
         logger.error("Discord events: DISCORD_SIGNING_SECRET not configured")
@@ -314,6 +309,11 @@ async def discord_events(request: Request, db: AsyncSession = Depends(get_db)):
     if not _verify_discord_signature(request, raw_body, signing_secret):
         logger.warning("Discord events: invalid signature")
         return JSONResponse(status_code=401, content={"error": "Invalid signature"})
+
+    # URL verification challenge (after signature is verified)
+    if payload.get("type") == "url_verification":
+        logger.info("Discord events: url_verification received, responding with challenge")
+        return JSONResponse(content={"challenge": payload.get("challenge", "")})
 
     if payload.get("type") == "event_callback":
         event = payload.get("event", {})
@@ -460,7 +460,7 @@ async def test_connection(
                     "purpose": "discord_verify",
                     "integration_id": integration.id,
                     "user_id": str(current_user.id),
-                    "exp": datetime.utcnow() + timedelta(days=7),
+                    "exp": datetime.now(timezone.utc) + timedelta(days=7),
                 }
                 signed = jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
                 redirect_uri = os.getenv("DISCORD_REDIRECT_URI", "")

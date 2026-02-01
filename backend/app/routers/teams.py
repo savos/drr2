@@ -742,21 +742,24 @@ async def bot_webhook(request: Request, db: AsyncSession = Depends(get_db)):
     if not (service_url and conversation_id and aad_id):
         return JSONResponse({"detail": "Missing fields in activity"}, status_code=200)
 
-    # Validate Bot Framework token if app ID configured
+    # Validate Bot Framework token — mandatory
     auth_header = request.headers.get("Authorization")
     bot_app_id = os.getenv("BOT_APP_ID") or os.getenv("MICROSOFT_APP_ID")
+    if not bot_app_id:
+        logger.error("Bot webhook received but BOT_APP_ID / MICROSOFT_APP_ID is not configured")
+        return JSONResponse({"detail": "Bot authentication not configured"}, status_code=503)
+
     channel_service = os.getenv("BOT_CHANNEL_SERVICE", "public").lower()
-    if bot_app_id:
-        try:
-            await verify_bot_jwt(
-                auth_header,
-                audience=bot_app_id,
-                expected_service_url=service_url,
-                channel_service=channel_service,
-            )
-        except Exception as e:
-            logger.warning(f"Bot JWT validation failed: {e}")
-            return JSONResponse({"detail": "Unauthorized"}, status_code=401)
+    try:
+        await verify_bot_jwt(
+            auth_header,
+            audience=bot_app_id,
+            expected_service_url=service_url,
+            channel_service=channel_service,
+        )
+    except Exception as e:
+        logger.warning(f"Bot JWT validation failed: {e}")
+        return JSONResponse({"detail": "Unauthorized"}, status_code=401)
 
     # Find any integration row matching this Teams user id
     integ = await teams_service.get_any_by_teams_user_id(db, aad_id)

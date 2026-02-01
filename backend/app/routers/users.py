@@ -92,9 +92,10 @@ async def create_user(
 
     except Exception as e:
         await db.rollback()
+        logger.error(f"User creation failed: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"User creation failed: {str(e)}"
+            detail="User creation failed. Please try again."
         )
 
 
@@ -256,10 +257,10 @@ async def update_user(
 
     except Exception as e:
         await db.rollback()
-        logger.error(f"Error updating user: {e}")
+        logger.error(f"Error updating user: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to update user: {str(e)}"
+            detail="Failed to update user. Please try again."
         )
 
 

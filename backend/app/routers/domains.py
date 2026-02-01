@@ -1,7 +1,7 @@
 """Domains router for domain and SSL monitoring."""
 import logging
 from typing import List
-from datetime import date
+from datetime import date, datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_
@@ -299,8 +299,7 @@ async def delete_domain(
             )
 
         # Soft delete
-        from datetime import datetime
-        domain.deleted_at = datetime.utcnow()
+        domain.deleted_at = datetime.now(timezone.utc)
         await db.commit()
 
         logger.info(f"Domain {domain.name} deleted by user {current_user.email}")

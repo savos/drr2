@@ -127,9 +127,10 @@ async def register(
 
     except Exception as e:
         await db.rollback()
+        logger.error(f"Registration failed: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Registration failed: {str(e)}"
+            detail="Registration failed. Please try again."
         )
 
 
