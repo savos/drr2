@@ -40,10 +40,17 @@ class SlackUpdate(BaseModel):
     status: Optional[SlackStatus] = None
 
 
-class SlackRead(SlackBase):
-    """Schema for reading a Slack integration."""
+class SlackRead(BaseModel):
+    """Schema for reading a Slack integration (safe for clients)."""
     id: int
     user_id: str
+    workspace_id: str
+    workspace_name: Optional[str] = None
+    bot_user_id: Optional[str] = None
+    slack_user_id: Optional[str] = None
+    channel_id: str
+    channel_name: Optional[str] = None
+    status: SlackStatus
     created_at: datetime
     updated_at: datetime
     deleted_at: Optional[datetime] = None

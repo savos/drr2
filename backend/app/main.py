@@ -33,6 +33,7 @@ import app.routers.discord as discord
 import app.routers.teams as teams
 import app.routers.cases as cases
 import app.routers.domains as domains
+import app.routers.pricing as pricing
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -140,6 +141,7 @@ app.include_router(discord.router, prefix="/api")
 app.include_router(teams.router, prefix="/api")
 app.include_router(cases.router, prefix="/api")
 app.include_router(domains.router, prefix="/api")
+app.include_router(pricing.router, prefix="/api")
 
 
 if __name__ == "__main__":

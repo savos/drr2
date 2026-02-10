@@ -113,6 +113,11 @@ class ResetPasswordRequest(BaseModel):
         return v
 
 
+class TokenRequest(BaseModel):
+    """Schema for token verification requests."""
+    token: str = Field(..., min_length=1)
+
+
 class MessageResponse(BaseModel):
     """Generic message response."""
     message: str

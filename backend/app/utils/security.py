@@ -6,7 +6,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional, Tuple
 from passlib.context import CryptContext
 from jose import JWTError, jwt
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy import select
 
@@ -16,6 +16,9 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 # JWT configuration
 _jwt_secret = os.getenv("JWT_SECRET")
 if not _jwt_secret:
+    env = os.getenv("ENVIRONMENT", "DEV").upper()
+    if env == "PROD":
+        raise RuntimeError("JWT_SECRET environment variable must be set in production.")
     import warnings
     warnings.warn(
         "JWT_SECRET environment variable not set! Using auto-generated secret. "
@@ -233,7 +236,7 @@ def is_reset_token_expired(expiry: Optional[datetime]) -> bool:
 
 
 # HTTP Bearer token scheme
-security = HTTPBearer()
+security = HTTPBearer(auto_error=False)
 
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -243,6 +246,7 @@ from app.database.database import get_db
 async def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),
     db: AsyncSession = Depends(get_db),
+    request: Request = None,
 ):
     """
     Get the current user from JWT token.
@@ -262,7 +266,17 @@ async def get_current_user(
 
     logger = logging.getLogger(__name__)
 
-    token = credentials.credentials
+    token = None
+    if credentials:
+        token = credentials.credentials
+    if not token and request is not None:
+        token = request.cookies.get("access_token")
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Could not validate credentials",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
     payload = decode_access_token(token)
 
     user_id: str = payload.get("user_id")

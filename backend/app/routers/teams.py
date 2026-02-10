@@ -7,13 +7,17 @@ from typing import Dict, Any
 from fastapi import APIRouter, Depends, HTTPException, status, Query, Request
 from fastapi.responses import RedirectResponse, JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 from pydantic import BaseModel
+from datetime import datetime, timedelta, timezone
 
 from app.database.database import get_db
 from app.models.users import User
+from app.models.oauth_state import OAuthState
 from app.models.teams import TeamsStatus
 from app.schemas.teams import TeamsRead, ChannelSelection, AddChannelsRequest
 from app.utils.security import get_current_user
+from app.utils.crypto import decrypt_value
 from app.consumers.teams import TeamsConsumer, TeamsAPIError
 from app.services.teams import TeamsService
 from app.services.teams_conversation import TeamsConversationService
@@ -26,6 +30,12 @@ router = APIRouter(prefix="/teams", tags=["teams"])
 # Initialize Teams consumer
 teams_consumer = TeamsConsumer()
 teams_service = TeamsService()
+
+
+
+def _get_access_token(integration):
+    return decrypt_value(integration.access_token)
+
 
 
 # Request/Response Models
@@ -85,7 +95,8 @@ class SendDMTestRequest(BaseModel):
 
 @router.get("/oauth/url", response_model=OAuthUrlResponse)
 async def get_oauth_url(
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
 ):
     """
     Get Microsoft Teams OAuth authorization URL.
@@ -102,6 +113,16 @@ async def get_oauth_url(
     try:
         # Generate unique state for CSRF protection
         state = f"{current_user.id}:{uuid.uuid4()}"
+
+        # Persist state for server-side validation on callback
+        oauth_state = OAuthState(
+            id=str(uuid.uuid4()),
+            user_id=current_user.id,
+            state_token=state,
+            expires_at=datetime.now(timezone.utc) + timedelta(minutes=10),
+        )
+        db.add(oauth_state)
+        await db.commit()
 
         # Get OAuth URL
         oauth_url = teams_consumer.get_oauth_url(state)
@@ -129,11 +150,11 @@ async def get_status(
     Get personal-scope install status and deep link for adding the app.
     """
     dm_integration = await teams_service.get_first_by_user(db, current_user.id)
-    if not dm_integration or not dm_integration.access_token or not dm_integration.teams_user_id:
+    if not dm_integration or not _get_access_token(dm_integration) or not dm_integration.teams_user_id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No Teams connection found. Connect first.")
 
     installed = await teams_consumer.is_app_installed_for_user(
-        dm_integration.access_token, dm_integration.teams_user_id
+        _get_access_token(dm_integration), dm_integration.teams_user_id
     )
     deeplink = teams_consumer.deep_link_add_personal()
     return TeamsStatusResponse(personal_installed=installed, personal_deeplink=deeplink)
@@ -160,15 +181,26 @@ async def oauth_callback(
         Redirect to frontend with success/error status
     """
     try:
-        # Extract user_id from state
-        try:
-            user_id = state.split(":")[0]
-        except (IndexError, ValueError):
-            logger.error(f"Invalid state parameter: {state}")
+        # Validate state against persisted token (single-use)
+        result = await db.execute(select(OAuthState).where(OAuthState.state_token == state))
+        oauth_state = result.scalar_one_or_none()
+        if oauth_state is None:
+            logger.error(f"OAuth state not found: {state}")
             frontend_url = os.getenv("FRONTEND_URL", "http://localhost:3000")
             return RedirectResponse(
                 url=f"{frontend_url}/dashboard/channels/teams?error=invalid_state"
             )
+        if oauth_state.expires_at < datetime.now(timezone.utc):
+            logger.error(f"OAuth state expired for user {oauth_state.user_id}")
+            await db.delete(oauth_state)
+            await db.commit()
+            frontend_url = os.getenv("FRONTEND_URL", "http://localhost:3000")
+            return RedirectResponse(
+                url=f"{frontend_url}/dashboard/channels/teams?error=invalid_state"
+            )
+        user_id = oauth_state.user_id
+        await db.delete(oauth_state)
+        await db.commit()
 
         # Exchange code for token
         try:
@@ -303,7 +335,7 @@ async def get_available_teams(
         # Get user's DM integration (base integration with tokens)
         dm_integration = await teams_service.get_first_by_user(db, current_user.id)
 
-        if not dm_integration or not dm_integration.access_token:
+        if not dm_integration or not _get_access_token(dm_integration):
             logger.error(f"No Teams integration found for user {current_user.id}")
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -320,7 +352,7 @@ async def get_available_teams(
 
         # Get user's teams
         try:
-            user_teams = await teams_consumer.get_user_teams(dm_integration.access_token)
+            user_teams = await teams_consumer.get_user_teams(_get_access_token(dm_integration))
         except TeamsAPIError as e:
             logger.error(f"Failed to get Teams teams: {e}")
             raise HTTPException(
@@ -339,7 +371,7 @@ async def get_available_teams(
 
             try:
                 channels = await teams_consumer.get_team_channels(
-                    dm_integration.access_token,
+                    _get_access_token(dm_integration),
                     team_id
                 )
 
@@ -400,7 +432,7 @@ async def get_owned_teams(
     excluding already integrated channels.
     """
     dm_integration = await teams_service.get_first_by_user(db, current_user.id)
-    if not dm_integration or not dm_integration.access_token or not dm_integration.teams_user_id:
+    if not dm_integration or not _get_access_token(dm_integration) or not dm_integration.teams_user_id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No Teams connection found. Connect first.")
 
     existing_integrations = await teams_service.get_by_user(db, current_user.id)
@@ -411,14 +443,14 @@ async def get_owned_teams(
     }
 
     # Prefer Graph ownedObjects for owned teams
-    user_owned = await teams_consumer.get_owned_teams(dm_integration.access_token)
+    user_owned = await teams_consumer.get_owned_teams(_get_access_token(dm_integration))
 
     # Fallback to joinedTeams + owner role check if ownedObjects returned nothing
     teams_source = user_owned
     owner_checked = True
     if not teams_source:
         try:
-            teams_source = await teams_consumer.get_user_teams(dm_integration.access_token)
+            teams_source = await teams_consumer.get_user_teams(_get_access_token(dm_integration))
             owner_checked = False
         except TeamsAPIError:
             raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Failed to fetch teams from Microsoft Teams")
@@ -431,12 +463,12 @@ async def get_owned_teams(
             continue
         if not owner_checked:
             is_owner = await teams_consumer.is_user_owner_of_team(
-                dm_integration.access_token, team_id, dm_integration.teams_user_id
+                _get_access_token(dm_integration), team_id, dm_integration.teams_user_id
             )
             if not is_owner:
                 continue
         try:
-            channels = await teams_consumer.get_team_channels(dm_integration.access_token, team_id)
+            channels = await teams_consumer.get_team_channels(_get_access_token(dm_integration), team_id)
         except TeamsAPIError:
             continue
         available_channels = []
@@ -469,20 +501,20 @@ async def install_app(
     Returns per-target results and deep links for fallback if needed.
     """
     dm_integration = await teams_service.get_first_by_user(db, current_user.id)
-    if not dm_integration or not dm_integration.access_token or not dm_integration.teams_user_id:
+    if not dm_integration or not _get_access_token(dm_integration) or not dm_integration.teams_user_id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No Teams connection found. Connect first.")
 
     results: InstallResult = InstallResult(personal=None, teams={})
 
     if targets.include_personal:
         installed = await teams_consumer.is_app_installed_for_user(
-            dm_integration.access_token, dm_integration.teams_user_id
+            _get_access_token(dm_integration), dm_integration.teams_user_id
         )
         if installed:
             results.personal = {"installed": True}
         else:
             ok = await teams_consumer.install_app_for_user(
-                dm_integration.access_token, dm_integration.teams_user_id
+                _get_access_token(dm_integration), dm_integration.teams_user_id
             )
             if ok:
                 results.personal = {"installed": True}
@@ -496,13 +528,13 @@ async def install_app(
     for team_id in targets.team_ids:
         team_res: Dict[str, Any] = {"teamId": team_id}
         already = await teams_consumer.is_app_installed_for_team(
-            dm_integration.access_token, team_id
+            _get_access_token(dm_integration), team_id
         )
         if already:
             team_res.update({"installed": True})
         else:
             ok = await teams_consumer.install_app_for_team(
-                dm_integration.access_token, team_id
+                _get_access_token(dm_integration), team_id
             )
             if ok:
                 team_res.update({"installed": True})
@@ -528,13 +560,13 @@ async def send_test_channel(
     This is a connectivity test until bot messaging is fully wired.
     """
     dm_integration = await teams_service.get_first_by_user(db, current_user.id)
-    if not dm_integration or not dm_integration.access_token:
+    if not dm_integration or not _get_access_token(dm_integration):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No Teams connection found. Connect first.")
 
     message = payload.message or "DRR: This is a test message to your Teams channel."
     try:
         await teams_consumer.send_channel_message(
-            dm_integration.access_token,
+            _get_access_token(dm_integration),
             payload.team_id,
             payload.channel_id,
             message,

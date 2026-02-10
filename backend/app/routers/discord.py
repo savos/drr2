@@ -8,10 +8,12 @@ from fastapi.responses import RedirectResponse, JSONResponse
 from urllib.parse import urlparse
 from datetime import datetime, timedelta, timezone
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 from pydantic import BaseModel
 
 from app.database.database import get_db
 from app.models.users import User
+from app.models.oauth_state import OAuthState
 from app.models.discord import DiscordStatus
 from app.schemas.discord import DiscordRead
 from app.utils.security import get_current_user, SECRET_KEY, ALGORITHM
@@ -57,7 +59,8 @@ class ChannelSelectRequest(BaseModel):
 
 @router.get("/oauth/url", response_model=OAuthUrlResponse)
 async def get_oauth_url(
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
 ):
     """
     Get Discord OAuth authorization URL.
@@ -74,6 +77,16 @@ async def get_oauth_url(
     try:
         # Generate unique state for CSRF protection
         state = f"{current_user.id}:{uuid.uuid4()}"
+
+        # Persist state for server-side validation on callback
+        oauth_state = OAuthState(
+            id=str(uuid.uuid4()),
+            user_id=current_user.id,
+            state_token=state,
+            expires_at=datetime.now(timezone.utc) + timedelta(minutes=10),
+        )
+        db.add(oauth_state)
+        await db.commit()
 
         # Get OAuth URL
         oauth_url = discord_consumer.get_oauth_url(state)
@@ -114,15 +127,26 @@ async def oauth_callback(
         Redirect to frontend with success/error status
     """
     try:
-        # Extract user_id from state
-        try:
-            user_id = state.split(":")[0]
-        except (IndexError, ValueError):
-            logger.error(f"Invalid state parameter: {state}")
+        # Validate state against persisted token (single-use)
+        result = await db.execute(select(OAuthState).where(OAuthState.state_token == state))
+        oauth_state = result.scalar_one_or_none()
+        if oauth_state is None:
+            logger.error(f"OAuth state not found: {state}")
             frontend_url = os.getenv("FRONTEND_URL", "http://localhost:3000")
             return RedirectResponse(
                 url=f"{frontend_url}/dashboard/channels/discord?error=invalid_state"
             )
+        if oauth_state.expires_at < datetime.now(timezone.utc):
+            logger.error(f"OAuth state expired for user {oauth_state.user_id}")
+            await db.delete(oauth_state)
+            await db.commit()
+            frontend_url = os.getenv("FRONTEND_URL", "http://localhost:3000")
+            return RedirectResponse(
+                url=f"{frontend_url}/dashboard/channels/discord?error=invalid_state"
+            )
+        user_id = oauth_state.user_id
+        await db.delete(oauth_state)
+        await db.commit()
 
         # Exchange code for token
         try:

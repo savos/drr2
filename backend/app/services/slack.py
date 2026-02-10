@@ -6,6 +6,7 @@ from sqlalchemy import select, update
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.models.slack import Slack, SlackStatus
+from app.utils.crypto import encrypt_value, decrypt_value
 
 logger = logging.getLogger(__name__)
 
@@ -49,6 +50,9 @@ class SlackService:
             SQLAlchemyError: If database operation fails
         """
         try:
+            encrypted_bot_token = encrypt_value(access_token)
+            encrypted_user_token = encrypt_value(user_token)
+
             # Check if this specific channel integration already exists (including soft-deleted)
             existing = await SlackService.get_by_user_workspace_channel(
                 db, user_id, workspace_id, channel_id, include_deleted=True
@@ -57,11 +61,11 @@ class SlackService:
             if existing:
                 # Update existing integration (reactivate if soft-deleted)
                 existing.workspace_name = workspace_name
-                existing.bot_token = access_token
+                existing.bot_token = encrypted_bot_token
                 existing.bot_user_id = bot_user_id
                 existing.slack_user_id = slack_user_id
-                if user_token:
-                    existing.user_token = user_token
+                if encrypted_user_token:
+                    existing.user_token = encrypted_user_token
                 existing.channel_name = channel_name
                 existing.status = status
                 existing.deleted_at = None  # Reactivate if it was soft-deleted
@@ -76,10 +80,10 @@ class SlackService:
                 user_id=user_id,
                 workspace_id=workspace_id,
                 workspace_name=workspace_name,
-                bot_token=access_token,
+                bot_token=encrypted_bot_token,
                 bot_user_id=bot_user_id,
                 slack_user_id=slack_user_id,
-                user_token=user_token,
+                user_token=encrypted_user_token,
                 channel_id=channel_id,
                 channel_name=channel_name,
                 status=status
@@ -318,10 +322,10 @@ class SlackService:
             user_id=workspace_integration.user_id,
             workspace_id=workspace_integration.workspace_id,
             workspace_name=workspace_integration.workspace_name,
-            access_token=workspace_integration.bot_token,
+            access_token=decrypt_value(workspace_integration.bot_token),
             bot_user_id=workspace_integration.bot_user_id,
             slack_user_id=workspace_integration.slack_user_id,
-            user_token=workspace_integration.user_token,
+            user_token=decrypt_value(workspace_integration.user_token),
             channel_id=channel_id,
             channel_name=channel_name,
             status=SlackStatus.ENABLED

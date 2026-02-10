@@ -1,10 +1,14 @@
 import { useState, useEffect } from 'react';
-import { useSearchParams, Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 
 function ResetPassword() {
-  const [searchParams] = useSearchParams();
-  const navigate = useNavigate();
-  const token = searchParams.get('token');
+  const location = useLocation();
+  const hashParams = new URLSearchParams(location.hash.replace(/^#/, ''));
+  let token = hashParams.get('token');
+  if (!token) {
+    const searchParams = new URLSearchParams(location.search);
+    token = searchParams.get('token');
+  }
 
   const [formData, setFormData] = useState({
     password: '',
@@ -39,7 +43,13 @@ function ResetPassword() {
       }
 
       try {
-        const response = await fetch(`/api/auth/verify-reset-token?token=${encodeURIComponent(token)}`);
+        const response = await fetch('/api/auth/verify-reset-token', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ token }),
+        });
         const data = await response.json();
         setTokenValid(data.valid);
       } catch (err) {

@@ -12,6 +12,13 @@ import ResetPassword from './pages/ResetPassword';
 import VerifyEmail from './pages/VerifyEmail';
 import Dashboard from './pages/Dashboard';
 import AddUser from './pages/AddUser';
+import { authenticatedFetch } from './utils/api';
+import PrivacyPolicy from './pages/PrivacyPolicy';
+import TermsOfService from './pages/TermsOfService';
+import CookiePolicy from './pages/CookiePolicy';
+import AcceptableUsePolicy from './pages/AcceptableUsePolicy';
+import SecurityPolicy from './pages/SecurityPolicy';
+import Pricing from './pages/Pricing';
 
 // Import dashboard pages
 import {
@@ -51,53 +58,70 @@ import {
 // Tailwind styles are loaded via src/index.css and @layer components
 
 // Protected Route Component
-function ProtectedRoute({ children }) {
-  const token = localStorage.getItem('access_token');
-  return token ? children : <Navigate to="/login" replace />;
+function ProtectedRoute({ children, user, authChecked }) {
+  if (!authChecked) {
+    return null;
+  }
+  return user ? children : <Navigate to="/login" replace />;
 }
 
 // Superuser Route Component
-function SuperuserRoute({ children }) {
-  const token = localStorage.getItem('access_token');
-  const userStr = localStorage.getItem('user');
-
-  if (!token) {
+function SuperuserRoute({ children, user, authChecked }) {
+  if (!authChecked) {
+    return null;
+  }
+  if (!user) {
     return <Navigate to="/login" replace />;
   }
-
-  try {
-    const user = JSON.parse(userStr);
-    if (user && user.is_superuser) {
-      return children;
-    }
-  } catch (e) {
-    console.error('Failed to parse user data:', e);
+  if (user.is_superuser) {
+    return children;
   }
-
-  // If not superuser, redirect to dashboard
   return <Navigate to="/dashboard" replace />;
 }
 
 function App() {
   const [user, setUser] = useState(null);
+  const [authChecked, setAuthChecked] = useState(false);
 
   useEffect(() => {
-    // Check if user is logged in
-    const storedUser = localStorage.getItem('user');
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
-    }
+    const loadUser = async () => {
+      try {
+        // Use plain fetch for initial auth check to avoid redirect loop on 401
+        const response = await fetch('/api/auth/me', { credentials: 'include' });
+        if (response.ok) {
+          const data = await response.json();
+          setUser(data);
+          localStorage.setItem('user', JSON.stringify(data));
+        } else {
+          localStorage.removeItem('user');
+          setUser(null);
+        }
+      } catch (err) {
+        localStorage.removeItem('user');
+        setUser(null);
+      } finally {
+        setAuthChecked(true);
+      }
+    };
+
+    loadUser();
   }, []);
 
-  const handleLogout = () => {
-    localStorage.removeItem('access_token');
-    localStorage.removeItem('user');
-    setUser(null);
+  const handleLogout = async () => {
+    try {
+      await authenticatedFetch('/api/auth/logout', { method: 'POST' });
+    } catch (err) {
+      // Ignore logout errors and still clear client state.
+    } finally {
+      localStorage.removeItem('user');
+      setUser(null);
+    }
   };
 
   const handleAuthSuccess = (nextUser) => {
     if (nextUser) {
       setUser(nextUser);
+      localStorage.setItem('user', JSON.stringify(nextUser));
     }
   };
 
@@ -119,15 +143,23 @@ function App() {
             <Route path="/verify-email" element={<VerifyEmail onAuthSuccess={handleAuthSuccess} />} />
             <Route path="/solutions" element={<SolutionsPage />} />
             <Route path="/products" element={<ProductsPage />} />
+            <Route path="/pricing" element={<Pricing />} />
             <Route path="/partners" element={<PartnersPage />} />
             <Route path="/company" element={<CompanyPage />} />
+
+            {/* Legal Pages */}
+            <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+            <Route path="/terms-of-service" element={<TermsOfService />} />
+            <Route path="/cookie-policy" element={<CookiePolicy />} />
+            <Route path="/acceptable-use" element={<AcceptableUsePolicy />} />
+            <Route path="/security" element={<SecurityPolicy />} />
           </Route>
 
           {/* Protected Dashboard Routes with DashboardHeader */}
           <Route
             path="/dashboard"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute user={user} authChecked={authChecked}>
                 <DashboardLayout onLogout={handleLogout} />
               </ProtectedRoute>
             }
@@ -137,26 +169,26 @@ function App() {
             {/* Account Routes */}
             <Route path="plan" element={<PlanPage />} />
             <Route path="add-user" element={
-              <SuperuserRoute>
+              <SuperuserRoute user={user} authChecked={authChecked}>
                 <AddUser />
               </SuperuserRoute>
             } />
             <Route path="user-monitor" element={<UserMonitorPage />} />
             <Route path="status" element={<StatusPage />} />
             <Route path="delete-account" element={
-              <SuperuserRoute>
+              <SuperuserRoute user={user} authChecked={authChecked}>
                 <DeleteAccountPage />
               </SuperuserRoute>
             } />
 
             {/* Domain/SSL Routes */}
             <Route path="add-domain" element={
-              <SuperuserRoute>
+              <SuperuserRoute user={user} authChecked={authChecked}>
                 <AddDomainPage />
               </SuperuserRoute>
             } />
             <Route path="add-ssl" element={
-              <SuperuserRoute>
+              <SuperuserRoute user={user} authChecked={authChecked}>
                 <AddSSLPage />
               </SuperuserRoute>
             } />

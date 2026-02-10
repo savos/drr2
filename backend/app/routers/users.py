@@ -379,7 +379,7 @@ async def send_verification_email(
 
         # Build verification URL
         frontend_url = os.getenv("FRONTEND_URL", "http://localhost:3000")
-        verify_url = f"{frontend_url}/verify-email?token={plain_token}"
+        verify_url = f"{frontend_url}/verify-email#token={plain_token}"
 
         # Send email
         email_sent = email_service.send_verification_email(

@@ -7,7 +7,7 @@ class CompanyBase(BaseModel):
     """Base company schema."""
     name: str = Field(..., max_length=255)
     payable: bool = False
-    price_plan_id: str | None = None
+    price_plan_id: int | None = None
 
 
 class CompanyCreate(CompanyBase):
@@ -19,7 +19,7 @@ class CompanyUpdate(BaseModel):
     """Schema for updating a company."""
     name: str | None = Field(None, max_length=255)
     payable: bool | None = None
-    price_plan_id: str | None = None
+    price_plan_id: int | None = None
 
 
 class CompanyResponse(CompanyBase):

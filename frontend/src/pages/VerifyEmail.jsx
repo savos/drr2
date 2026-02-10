@@ -29,9 +29,13 @@ function VerifyEmail({ onAuthSuccess }) {
       }
       hasVerified.current = true;
 
-      // Get token from URL query params
-      const params = new URLSearchParams(location.search);
-      const token = params.get('token');
+      // Get token from URL hash params (avoid query string tokens)
+      const hashParams = new URLSearchParams(location.hash.replace(/^#/, ''));
+      let token = hashParams.get('token');
+      if (!token) {
+        const searchParams = new URLSearchParams(location.search);
+        token = searchParams.get('token');
+      }
 
       if (!token) {
         setStatus('error');
@@ -40,7 +44,13 @@ function VerifyEmail({ onAuthSuccess }) {
       }
 
       try {
-        const response = await fetch(`/api/auth/verify-email?token=${token}`);
+        const response = await fetch('/api/auth/verify-email', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ token }),
+        });
         const data = await response.json();
 
         if (response.ok) {
@@ -70,7 +80,7 @@ function VerifyEmail({ onAuthSuccess }) {
     };
 
     verifyEmail();
-  }, [location.search, navigate]);
+  }, [location.hash, location.search, navigate]);
 
   // Validate password strength
   const validatePassword = (pwd) => {
@@ -143,6 +153,7 @@ function VerifyEmail({ onAuthSuccess }) {
         headers: {
           'Content-Type': 'application/json',
         },
+        credentials: 'include',
         body: JSON.stringify({
           token: verificationToken,
           password: password,
@@ -152,8 +163,7 @@ function VerifyEmail({ onAuthSuccess }) {
       const data = await response.json();
 
       if (response.ok) {
-        // Password set successfully, auto-login
-        localStorage.setItem('access_token', data.access_token);
+        // Password set successfully, auto-login via HttpOnly cookie
         localStorage.setItem('user', JSON.stringify(data.user));
 
         // Call onAuthSuccess if provided

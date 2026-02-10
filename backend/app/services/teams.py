@@ -7,6 +7,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from datetime import datetime
 
 from app.models.teams import Teams, TeamsStatus
+from app.utils.crypto import encrypt_value, decrypt_value
 
 logger = logging.getLogger(__name__)
 
@@ -37,12 +38,15 @@ class TeamsService:
                 db, user_id, team_id, channel_id, include_deleted=True
             )
 
+            encrypted_access = encrypt_value(access_token)
+            encrypted_refresh = encrypt_value(refresh_token)
+
             if existing:
                 # Update existing integration
                 existing.email = email
                 existing.username = username
-                existing.access_token = access_token
-                existing.refresh_token = refresh_token
+                existing.access_token = encrypted_access
+                existing.refresh_token = encrypted_refresh
                 existing.token_expires_at = token_expires_at
                 existing.team_name = team_name
                 existing.channel_name = channel_name
@@ -60,8 +64,8 @@ class TeamsService:
                 teams_user_id=teams_user_id,
                 email=email,
                 username=username,
-                access_token=access_token,
-                refresh_token=refresh_token,
+                access_token=encrypted_access,
+                refresh_token=encrypted_refresh,
                 token_expires_at=token_expires_at,
                 team_id=team_id,
                 team_name=team_name,
@@ -210,8 +214,8 @@ class TeamsService:
             teams_user_id=base_integration.teams_user_id,
             email=base_integration.email,
             username=base_integration.username,
-            access_token=base_integration.access_token,
-            refresh_token=base_integration.refresh_token,
+            access_token=decrypt_value(base_integration.access_token),
+            refresh_token=decrypt_value(base_integration.refresh_token),
             token_expires_at=base_integration.token_expires_at,
             team_id=team_id,
             team_name=team_name,
@@ -234,9 +238,9 @@ class TeamsService:
             if not integration:
                 return None
 
-            integration.access_token = access_token
+            integration.access_token = encrypt_value(access_token)
             if refresh_token:
-                integration.refresh_token = refresh_token
+                integration.refresh_token = encrypt_value(refresh_token)
             if token_expires_at:
                 integration.token_expires_at = token_expires_at
 

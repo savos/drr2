@@ -5,10 +5,15 @@
 /**
  * Handle logout and redirect to sign-in page
  */
-const handleLogout = () => {
-  localStorage.removeItem('access_token');
+const handleLogout = async () => {
   localStorage.removeItem('user');
-  window.location.href = '/login';
+  try {
+    await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
+  } catch (err) {
+    console.error('Logout failed:', err);
+  } finally {
+    window.location.href = '/login';
+  }
 };
 
 /**
@@ -20,22 +25,19 @@ const handleLogout = () => {
  * @returns {Promise<Response>} - The fetch response
  */
 export const authenticatedFetch = async (url, options = {}) => {
-  const token = localStorage.getItem('access_token');
-
-  // Add authorization header if token exists
   const headers = {
     ...options.headers,
-    ...(token && { 'Authorization': `Bearer ${token}` })
   };
 
   const response = await fetch(url, {
     ...options,
-    headers
+    headers,
+    credentials: 'include',
   });
 
   // If unauthorized (token expired or invalid), logout and redirect
   if (response.status === 401) {
-    handleLogout();
+    await handleLogout();
     throw new Error('Session expired. Please login again.');
   }
 

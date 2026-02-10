@@ -3,7 +3,7 @@ import os
 import uuid
 import logging
 from datetime import timedelta
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.database.database import get_db
@@ -20,6 +20,7 @@ from app.schemas.auth import (
     MessageResponse,
     VerificationResponse,
     SetPasswordRequest,
+    TokenRequest,
 )
 from app.utils.security import (
     hash_password,
@@ -43,7 +44,8 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 @router.post("/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
 async def register(
     request: RegisterRequest,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    response: Response = None
 ):
     """
     Register a new user with company.
@@ -110,6 +112,18 @@ async def register(
             expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
         )
 
+        if response is not None:
+            cookie_max_age = ACCESS_TOKEN_EXPIRE_MINUTES * 60
+            response.set_cookie(
+                "access_token",
+                access_token,
+                httponly=True,
+                secure=os.getenv("ENVIRONMENT", "DEV").upper() == "PROD",
+                samesite="lax",
+                max_age=cookie_max_age,
+                path="/",
+            )
+
         return TokenResponse(
             access_token=access_token,
             token_type="bearer",
@@ -142,7 +156,8 @@ _DUMMY_HASH = "$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/X.nFdDJlzQpOq6lqu"
 @router.post("/login", response_model=TokenResponse)
 async def login(
     request: LoginRequest,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    response: Response = None
 ):
     """
     Login user with email and password.
@@ -190,6 +205,18 @@ async def login(
         data={"sub": user.email, "user_id": user.id},
         expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     )
+
+    if response is not None:
+        cookie_max_age = ACCESS_TOKEN_EXPIRE_MINUTES * 60
+        response.set_cookie(
+            "access_token",
+            access_token,
+            httponly=True,
+            secure=os.getenv("ENVIRONMENT", "DEV").upper() == "PROD",
+            samesite="lax",
+            max_age=cookie_max_age,
+            path="/",
+        )
 
     return TokenResponse(
         access_token=access_token,
@@ -259,6 +286,12 @@ async def get_me(current_user: User = Depends(get_current_user)):
     }
 
 
+@router.post("/logout", response_model=MessageResponse)
+async def logout(response: Response):
+    response.delete_cookie("access_token", path="/")
+    return MessageResponse(message="Logged out")
+
+
 @router.post("/forgot-password", response_model=MessageResponse)
 async def forgot_password(
     request: ForgotPasswordRequest,
@@ -304,7 +337,7 @@ async def forgot_password(
 
         # Build reset URL
         frontend_url = os.getenv("FRONTEND_URL", "http://localhost:3000")
-        reset_url = f"{frontend_url}/reset-password?token={plain_token}"
+        reset_url = f"{frontend_url}/reset-password#token={plain_token}"
 
         # Send email
         email_sent = email_service.send_password_reset_email(
@@ -415,6 +448,23 @@ async def verify_reset_token_endpoint(
 
     Returns success if token is valid and not expired.
     """
+    return await _verify_reset_token(token=token, db=db)
+
+
+@router.post("/verify-reset-token")
+async def verify_reset_token_post(
+    request: TokenRequest,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Verify if a reset token is valid (for frontend validation).
+
+    Accepts token in the request body to avoid putting it in URLs/logs.
+    """
+    return await _verify_reset_token(token=request.token, db=db)
+
+
+async def _verify_reset_token(token: str, db: AsyncSession):
     try:
         from app.utils.security import hash_reset_token
 
@@ -450,6 +500,23 @@ async def verify_email(
 
     Returns whether user needs to set a password (for users added by superuser).
     """
+    return await _verify_email_token(token=token, db=db)
+
+
+@router.post("/verify-email", response_model=VerificationResponse, status_code=status.HTTP_200_OK)
+async def verify_email_post(
+    request: TokenRequest,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Verify user's email address using token from email.
+
+    Accepts token in the request body to avoid putting it in URLs/logs.
+    """
+    return await _verify_email_token(token=request.token, db=db)
+
+
+async def _verify_email_token(token: str, db: AsyncSession):
     try:
         # Hash the incoming token and find user
         from app.utils.security import hash_reset_token
@@ -527,7 +594,8 @@ async def verify_email(
 @router.post("/set-password", response_model=TokenResponse)
 async def set_password(
     request: SetPasswordRequest,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    response: Response = None
 ):
     """
     Set password for verified user who doesn't have one yet (users added by superuser).
@@ -607,6 +675,18 @@ async def set_password(
             data={"sub": user.email, "user_id": user.id},
             expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
         )
+
+        if response is not None:
+            cookie_max_age = ACCESS_TOKEN_EXPIRE_MINUTES * 60
+            response.set_cookie(
+                "access_token",
+                access_token,
+                httponly=True,
+                secure=os.getenv("ENVIRONMENT", "DEV").upper() == "PROD",
+                samesite="lax",
+                max_age=cookie_max_age,
+                path="/",
+            )
 
         return TokenResponse(
             access_token=access_token,

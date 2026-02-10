@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Icon } from '../utils/icons';
 import { AnimatedPage } from '../components/AnimatedPage';
+import { authenticatedFetch } from '../utils/api';
 import { SkeletonTableRow } from '../components/Skeleton';
 
 function AddUser() {
@@ -49,14 +50,7 @@ function AddUser() {
 
   const fetchUsers = async () => {
     try {
-      const token = localStorage.getItem('access_token');
-      if (!token) return;
-
-      const response = await fetch('/api/users/', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
+      const response = await authenticatedFetch('/api/users/');
 
       if (response.ok) {
         const data = await response.json();
@@ -171,12 +165,8 @@ function AddUser() {
     if (!userToDelete) return;
 
     try {
-      const token = localStorage.getItem('access_token');
-      const response = await fetch(`/api/users/${userToDelete.id}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+      const response = await authenticatedFetch(`/api/users/${userToDelete.id}`, {
+        method: 'DELETE'
       });
 
       const data = await response.json();
@@ -215,12 +205,8 @@ function AddUser() {
   // Send verification email
   const sendVerificationEmail = async (user) => {
     try {
-      const token = localStorage.getItem('access_token');
-      const response = await fetch(`/api/users/${user.id}/send-verification`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+      const response = await authenticatedFetch(`/api/users/${user.id}/send-verification`, {
+        method: 'POST'
       });
 
       if (response.ok) {
@@ -288,11 +274,6 @@ function AddUser() {
     setLoading(true);
 
     try {
-      const token = localStorage.getItem('access_token');
-      if (!token) {
-        throw new Error('Authentication token not found');
-      }
-
       if (editingUserId) {
         const updateData = {
           firstname: formData.firstname,
@@ -302,11 +283,10 @@ function AddUser() {
           is_superuser: isSuperuser
         };
 
-        const response = await fetch(`/api/users/${editingUserId}`, {
+        const response = await authenticatedFetch(`/api/users/${editingUserId}`, {
           method: 'PUT',
           headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
+            'Content-Type': 'application/json'
           },
           body: JSON.stringify(updateData),
         });
@@ -332,11 +312,10 @@ function AddUser() {
           throw new Error('Company ID not found');
         }
 
-        const response = await fetch('/api/users/', {
+        const response = await authenticatedFetch('/api/users/', {
           method: 'POST',
           headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
+            'Content-Type': 'application/json'
           },
           body: JSON.stringify({
             firstname: formData.firstname,

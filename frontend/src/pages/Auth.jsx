@@ -181,6 +181,7 @@ function Auth({ onAuthSuccess }) {
         headers: {
           'Content-Type': 'application/json',
         },
+        credentials: 'include',
         body: JSON.stringify({
           firstname: formData.firstname,
           lastname: formData.lastname,
@@ -200,9 +201,7 @@ function Auth({ onAuthSuccess }) {
         throw new Error(data?.detail || 'Registration failed');
       }
 
-      // Store token and user data
-      localStorage.setItem('access_token', data.access_token);
-      localStorage.setItem('user', JSON.stringify(data.user));
+      // Store user data in app state
       if (onAuthSuccess) {
         onAuthSuccess(data.user);
       }

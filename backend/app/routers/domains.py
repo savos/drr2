@@ -313,3 +313,143 @@ async def delete_domain(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to delete domain"
         )
+
+@router.patch("/{domain_id}/check", response_model=DomainResponse)
+async def check_domain(
+    domain_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Manually check/refresh a domain or SSL certificate.
+
+    Re-fetches WHOIS or SSL certificate data and updates the database record.
+    Updates the 'updated_at' timestamp to reflect when the check was performed.
+    """
+    try:
+        # Fetch the domain/SSL record
+        result = await db.execute(
+            select(Domain).where(
+                and_(
+                    Domain.id == domain_id,
+                    Domain.company_id == current_user.company_id,
+                    Domain.deleted_at.is_(None)
+                )
+            )
+        )
+        domain = result.scalar_one_or_none()
+
+        if not domain:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Domain not found"
+            )
+
+        # Re-fetch data based on type
+        if domain.type == DomainType.DOMAIN:
+            # Fetch WHOIS data
+            try:
+                domain_service = DomainService(domain.name)
+                whois_data = domain_service.get_whois()
+
+                if not whois_data:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail=f"Could not retrieve WHOIS data for domain '{domain.name}'"
+                    )
+
+                # Extract expiration date
+                expiration_date = whois_data.get("expiration_date")
+                if expiration_date == "restricted" or not expiration_date:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail=f"Expiration date for domain '{domain.name}' is restricted or unavailable"
+                    )
+
+                # Convert to date if datetime
+                if hasattr(expiration_date, 'date'):
+                    expiration_date = expiration_date.date()
+
+                registrar = whois_data.get("registrar", "Unknown")
+                if registrar == "restricted":
+                    registrar = "Unknown"
+
+                # Update domain record
+                domain.renew_date = expiration_date
+                domain.issuer = registrar[:128]
+                domain.updated_at = datetime.now(timezone.utc)
+
+            except HTTPException:
+                raise
+            except Exception as e:
+                logger.error(f"Error fetching WHOIS data for {domain.name}: {e}")
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail=f"Failed to retrieve domain information: {str(e)}"
+                )
+
+        elif domain.type == DomainType.SSL:
+            # Fetch SSL certificate data
+            try:
+                ssl_service = SslService(domain.name)
+                cert_data = ssl_service.get_cert()
+
+                if not cert_data:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail=f"Could not retrieve SSL certificate for '{domain.name}'"
+                    )
+
+                # Extract certificate data
+                not_after = cert_data.get("not_after")
+                not_before = cert_data.get("not_before")
+                issuer_data = cert_data.get("issuer", {})
+
+                # Get issuer name
+                issuer_name = (
+                    issuer_data.get("organizationName") or
+                    issuer_data.get("commonName") or
+                    "Unknown CA"
+                )
+
+                if not not_after:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail=f"Could not determine expiration date for SSL certificate on '{domain.name}'"
+                    )
+
+                # Convert to date
+                expiration_date = not_after.date() if hasattr(not_after, 'date') else not_after
+
+                # Update SSL record
+                domain.renew_date = expiration_date
+                domain.issuer = issuer_name[:128]
+                domain.not_before = not_before
+                domain.updated_at = datetime.now(timezone.utc)
+
+            except HTTPException:
+                raise
+            except Exception as e:
+                logger.error(f"Error fetching SSL certificate for {domain.name}: {e}")
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail=f"Failed to retrieve SSL certificate: {str(e)}"
+                )
+
+        # Save changes
+        await db.commit()
+        await db.refresh(domain)
+
+        logger.info(f"{domain.type.value if hasattr(domain.type, 'value') else domain.type} {domain.name} checked by user {current_user.email}")
+        return domain
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error checking domain: {e}")
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to check domain"
+        )
+

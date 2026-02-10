@@ -67,7 +67,7 @@ htmlcov/
 
 
 
-# Claude Code configuration
+# Claude Code configurationNo
 .claude/
 
 # Documentation files - all root markdown files
@@ -91,3 +91,8 @@ DATABASE-PERSISTENCE.md
 /Webex_integration.md
 /Zapier_integration.md
 /Zoom_integration.md
+/Security_Policy.md
+/Privacy_Policy.md
+/Acceptable_Use_Policy.md
+/Cookie_Policy.md
+/Terms_of_Service.md

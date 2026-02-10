@@ -8,15 +8,18 @@ from fastapi.responses import RedirectResponse, JSONResponse
 from urllib.parse import urlparse
 from datetime import datetime, timedelta, timezone
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 from pydantic import BaseModel
 
 from app.database.database import get_db
 from app.models.users import User
+from app.models.oauth_state import OAuthState
 from app.models.slack import SlackStatus
 from app.schemas.slack import SlackRead
 from app.utils.security import get_current_user, SECRET_KEY, ALGORITHM
 from app.consumers.slack import slack_consumer, SlackAPIError
 from app.services.slack import slack_service
+from app.utils.crypto import decrypt_value
 from jose import jwt, JWTError
 import hmac
 import hashlib
@@ -49,7 +52,8 @@ class TestConnectionResponse(BaseModel):
 
 @router.get("/oauth/url", response_model=OAuthUrlResponse)
 async def get_oauth_url(
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
 ):
     """
     Get Slack OAuth authorization URL.
@@ -66,6 +70,16 @@ async def get_oauth_url(
     try:
         # Generate unique state for CSRF protection
         state = f"{current_user.id}:{uuid.uuid4()}"
+
+        # Persist state for server-side validation on callback
+        oauth_state = OAuthState(
+            id=str(uuid.uuid4()),
+            user_id=current_user.id,
+            state_token=state,
+            expires_at=datetime.now(timezone.utc) + timedelta(minutes=10),
+        )
+        db.add(oauth_state)
+        await db.commit()
 
         # Get OAuth URL
         oauth_url = slack_consumer.get_oauth_url(state)
@@ -106,15 +120,26 @@ async def oauth_callback(
         Redirect to frontend with success/error status
     """
     try:
-        # Extract user_id from state
-        try:
-            user_id = state.split(":")[0]
-        except (IndexError, ValueError):
-            logger.error(f"Invalid state parameter: {state}")
+        # Validate state against persisted token (single-use)
+        result = await db.execute(select(OAuthState).where(OAuthState.state_token == state))
+        oauth_state = result.scalar_one_or_none()
+        if oauth_state is None:
+            logger.error(f"OAuth state not found: {state}")
             frontend_url = os.getenv("FRONTEND_URL", "http://localhost:3000")
             return RedirectResponse(
                 url=f"{frontend_url}/dashboard/channels/slack?error=invalid_state"
             )
+        if oauth_state.expires_at < datetime.now(timezone.utc):
+            logger.error(f"OAuth state expired for user {oauth_state.user_id}")
+            await db.delete(oauth_state)
+            await db.commit()
+            frontend_url = os.getenv("FRONTEND_URL", "http://localhost:3000")
+            return RedirectResponse(
+                url=f"{frontend_url}/dashboard/channels/slack?error=invalid_state"
+            )
+        user_id = oauth_state.user_id
+        await db.delete(oauth_state)
+        await db.commit()
 
         # Exchange code for token
         try:
@@ -216,7 +241,8 @@ async def get_available_channels(
                 "message": "Please connect Slack first."
             }
 
-        if not dm_integration.user_token or not dm_integration.slack_user_id:
+        user_token = decrypt_value(dm_integration.user_token)
+        if not user_token or not dm_integration.slack_user_id:
             return {
                 "channels": [],
                 "error": "no_user_token",
@@ -224,7 +250,7 @@ async def get_available_channels(
             }
 
         # Channels created by the user (via user token)
-        user_channels = await slack_consumer.get_user_channels(dm_integration.user_token)
+        user_channels = await slack_consumer.get_user_channels(user_token)
         created_channel_ids = {
             ch.get("id")
             for ch in user_channels
@@ -242,7 +268,7 @@ async def get_available_channels(
         bot_channels = []
         if dm_integration.bot_user_id:
             bot_channels = await slack_consumer.get_bot_channels(
-                dm_integration.bot_token,
+                decrypt_value(dm_integration.bot_token),
                 dm_integration.bot_user_id
             )
 
@@ -432,7 +458,10 @@ async def slack_events(request: Request, db: AsyncSession = Depends(get_db)):
                     # Fetch channel info to get the channel name
                     channel_name = None
                     try:
-                        channel_info = await slack_consumer.get_channel_info(base_integration.bot_token, channel_id)
+                        channel_info = await slack_consumer.get_channel_info(
+                            decrypt_value(base_integration.bot_token),
+                            channel_id
+                        )
                         channel_name = channel_info.get("name") or channel_info.get("name_normalized")
                         logger.info("Slack events: channel name=%s", channel_name)
                     except Exception as e:
@@ -550,7 +579,7 @@ async def test_connection(
             if is_dm:
                 # Send test message to DM
                 await slack_consumer.send_test_message(
-                    access_token=integration.bot_token,
+                    access_token=decrypt_value(integration.bot_token),
                     user_id=integration.slack_user_id,
                     verification_url=verification_url
                 )
@@ -560,7 +589,7 @@ async def test_connection(
                 # Send test message to channel
                 channel_name_display = f"#{integration.channel_name}" if integration.channel_name else integration.channel_id
                 await slack_consumer.send_message(
-                    access_token=integration.bot_token,
+                    access_token=decrypt_value(integration.bot_token),
                     channel_id=integration.channel_id,
                     text=f"✅ DRR test: channel {channel_name_display} is connected and ready to receive notifications.",
                 )
@@ -626,9 +655,9 @@ async def delete_integration(
         # Attempt to uninstall the app from Slack (best-effort)
         try:
             if integration.bot_token:
-                uninstalled = await slack_consumer.uninstall_app(integration.bot_token)
+                uninstalled = await slack_consumer.uninstall_app(decrypt_value(integration.bot_token))
                 if not uninstalled:
-                    await slack_consumer.revoke_token(integration.bot_token)
+                    await slack_consumer.revoke_token(decrypt_value(integration.bot_token))
         except Exception as e:
             logger.warning(f"Unable to uninstall or revoke Slack app for integration {integration_id}: {e}")
 

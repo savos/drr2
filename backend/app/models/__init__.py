@@ -10,9 +10,12 @@ from app.models.discord import Discord
 from app.models.teams import Teams
 from app.models.teams_conversation import TeamsConversation
 from app.models.domain import Domain, DomainType
+from app.models.oauth_state import OAuthState
+from app.models.subscription import Subscription
 
 __all__ = [
     "Company", "User", "Pricing", "Case", "CaseLink",
     "Slack", "Telegram", "TelegramDMConnection", "Discord",
     "Teams", "TeamsConversation", "Domain", "DomainType",
+    "OAuthState", "Subscription",
 ]
